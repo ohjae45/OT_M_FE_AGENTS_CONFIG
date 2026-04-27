@@ -43,7 +43,6 @@ copy_seed() {
 
 copy_seed "$SOURCE_DIR/templates/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_seed "$SOURCE_DIR/templates/CLAUDE.md"  "$TARGET_DIR/CLAUDE.md"
-copy_seed "$SOURCE_DIR/scripts/sync-agent-config-from-remote.sh" "$TARGET_DIR/scripts/sync-agent-config-from-remote.sh"
 
 # ---------------------------------------------------------------------------
 # Phase 2: Managed files — always overwrite
@@ -62,6 +61,7 @@ for f in "$SOURCE_DIR"/ai-guides/*; do
 done
 
 copy_managed "$SOURCE_DIR/.claude/settings.json" "$TARGET_DIR/.claude/settings.json"
+copy_managed "$SOURCE_DIR/scripts/sync-agent-config-from-remote.sh" "$TARGET_DIR/scripts/sync-agent-config-from-remote.sh"
 
 for f in "$SOURCE_DIR"/.claude/skills/*; do
   [ -f "$f" ] || continue
