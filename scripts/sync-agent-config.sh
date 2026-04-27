@@ -118,11 +118,11 @@ echo ""
 echo "=== Sync Complete ==="
 echo ""
 
+print_section "⏭️"   "Seed skipped (already exists)"  "" "${SEEDS_SKIPPED[@]+"${SEEDS_SKIPPED[@]}"}"
+print_section "💤"  "Unchanged"                       "" "${MANAGED_UNCHANGED[@]+"${MANAGED_UNCHANGED[@]}"}"
 print_section "✅"  "Added"                           "" "${MANAGED_ADDED[@]+"${MANAGED_ADDED[@]}"}"
 print_section "✏️"   "Modified"                        "" "${MANAGED_MODIFIED[@]+"${MANAGED_MODIFIED[@]}"}"
 print_section "❌"  "Deleted"                         "$RED" "${MANAGED_DELETED[@]+"${MANAGED_DELETED[@]}"}"
-print_section "·"   "Unchanged"                       "" "${MANAGED_UNCHANGED[@]+"${MANAGED_UNCHANGED[@]}"}"
-print_section "⏭️"   "Seed skipped (already exists)"  "" "${SEEDS_SKIPPED[@]+"${SEEDS_SKIPPED[@]}"}"
 
 echo ""
 echo "Review changes with 'git diff', then commit and open a PR manually."
