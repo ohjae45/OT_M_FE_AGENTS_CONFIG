@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Clones COMMON_AGENT_CONFIG and syncs files into this project.
+# Shared skill sources live in agent-docs/skills and are generated into
+# agent-specific locations during sync.
 # Usage: bash scripts/sync-agent-config.sh
 #        (run from project root)
 set -euo pipefail
@@ -69,6 +71,10 @@ sync_managed_dir() {
   local src_dir="$1"
   local dest_dir="$2"
 
+  # If a source directory is absent in an older config checkout, do not delete
+  # existing target files just because the source path cannot be read.
+  [ -d "$src_dir" ] || return 0
+
   for f in "$src_dir"/*; do
     [ -f "$f" ] || continue
     copy_managed "$f" "$dest_dir/$(basename "$f")"
@@ -85,12 +91,100 @@ sync_managed_dir() {
   fi
 }
 
+extract_codex_description() {
+  local src="$1"
+
+  # Codex only indexes SKILL.md frontmatter before loading the body, so keep a
+  # concise description derived from the shared source Description section.
+  awk '
+    /^## Description[[:space:]]*$/ { in_description=1; next }
+    in_description && /^## / { exit }
+    in_description && NF {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+      print
+    }
+  ' "$src" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/[[:space:]]$//'
+}
+
+write_codex_skill() {
+  local src="$1"
+  local dest="$2"
+  local skill_name
+  local description
+  local generated
+
+  skill_name="$(basename "$src" .md)"
+  description="$(extract_codex_description "$src")"
+  generated="$TMP_DIR/${skill_name}-SKILL.md"
+
+  if [ -z "$description" ]; then
+    description="Common agent workflow for ${skill_name}. Use when the user asks for this skill."
+  fi
+
+  # Codex requires SKILL.md frontmatter, while the shared source stays
+  # agent-neutral markdown for Claude and future agents.
+  {
+    printf '%s\n' '---'
+    printf 'name: %s\n' "$skill_name"
+    printf '%s\n' 'description: >'
+    printf '  %s\n' "$description"
+    printf '%s\n\n' '---'
+    printf '<!-- Generated from agent-docs/skills/%s.md by scripts/sync-agent-config.sh. Edit the source file instead. -->\n\n' "$skill_name"
+    cat "$src"
+  } > "$generated"
+
+  copy_managed "$generated" "$dest"
+}
+
+sync_codex_skills() {
+  local src_dir="$1"
+  local dest_root="$2"
+  local src
+  local skill_name
+  local skill_dir
+  local skill_file
+
+  # Codex repo-local skills use .agents/skills/<name>/SKILL.md, so generate a
+  # directory per shared skill source instead of copying the markdown directly.
+  [ -d "$src_dir" ] || return 0
+
+  for src in "$src_dir"/*.md; do
+    [ -f "$src" ] || continue
+    skill_name="$(basename "$src" .md)"
+    write_codex_skill "$src" "$dest_root/$skill_name/SKILL.md"
+  done
+
+  if [ -d "$dest_root" ]; then
+    for skill_dir in "$dest_root"/*; do
+      [ -d "$skill_dir" ] || continue
+      skill_name="$(basename "$skill_dir")"
+      skill_file="$skill_dir/SKILL.md"
+
+      # Only delete stale Codex skills that this sync script previously
+      # generated. Target repos can keep their own custom .agents/skills.
+      if [ ! -f "$src_dir/$skill_name.md" ] &&
+        [ -f "$skill_file" ] &&
+        grep -q 'Generated from agent-docs/skills/' "$skill_file"; then
+        rm -rf "$skill_dir"
+        MANAGED_DELETED+=("${skill_dir#"$TARGET_DIR/"}")
+      fi
+    done
+  fi
+}
+
 sync_managed_dir "$SOURCE_DIR/agent-docs/guides" "$TARGET_DIR/agent-docs/guides"
+sync_managed_dir "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/agent-docs/skills"
 
 copy_managed "$SOURCE_DIR/.claude/settings.json"           "$TARGET_DIR/.claude/settings.json"
 copy_managed "$SOURCE_DIR/scripts/sync-agent-config.sh"    "$TARGET_DIR/scripts/sync-agent-config.sh"
 
-sync_managed_dir "$SOURCE_DIR/.claude/skills" "$TARGET_DIR/.claude/skills"
+# Claude reads plain markdown skills, so copy the shared source as a managed
+# output rather than keeping duplicate files in COMMON_AGENT_CONFIG.
+sync_managed_dir "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.claude/skills"
+
+# Codex reads SKILL.md folders, so generate Codex-specific wrappers at sync
+# time from the same shared source.
+sync_codex_skills "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.agents/skills"
 
 # ---------------------------------------------------------------------------
 # Summary
