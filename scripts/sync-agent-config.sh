@@ -91,10 +91,10 @@ sync_managed_dir() {
   fi
 }
 
-extract_codex_description() {
+extract_skill_description() {
   local src="$1"
 
-  # Codex only indexes SKILL.md frontmatter before loading the body, so keep a
+  # Skill frontmatter is what agents index before loading the body, so keep a
   # concise description derived from the shared source Description section.
   awk '
     /^## Description[[:space:]]*$/ { in_description=1; next }
@@ -106,7 +106,7 @@ extract_codex_description() {
   ' "$src" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/[[:space:]]$//'
 }
 
-write_codex_skill() {
+write_skill_package() {
   local src="$1"
   local dest="$2"
   local skill_name
@@ -114,15 +114,15 @@ write_codex_skill() {
   local generated
 
   skill_name="$(basename "$src" .md)"
-  description="$(extract_codex_description "$src")"
+  description="$(extract_skill_description "$src")"
   generated="$TMP_DIR/${skill_name}-SKILL.md"
 
   if [ -z "$description" ]; then
     description="Common agent workflow for ${skill_name}. Use when the user asks for this skill."
   fi
 
-  # Codex requires SKILL.md frontmatter, while the shared source stays
-  # agent-neutral markdown for Claude and future agents.
+  # Claude Code and Codex both discover skills through SKILL.md frontmatter,
+  # while the shared source stays agent-neutral markdown.
   {
     printf '%s\n' '---'
     printf 'name: %s\n' "$skill_name"
@@ -136,7 +136,7 @@ write_codex_skill() {
   copy_managed "$generated" "$dest"
 }
 
-sync_codex_skills() {
+sync_skill_packages() {
   local src_dir="$1"
   local dest_root="$2"
   local src
@@ -144,14 +144,14 @@ sync_codex_skills() {
   local skill_dir
   local skill_file
 
-  # Codex repo-local skills use .agents/skills/<name>/SKILL.md, so generate a
-  # directory per shared skill source instead of copying the markdown directly.
+  # Skill-aware agents use <root>/<name>/SKILL.md, so generate a directory per
+  # shared skill source instead of copying the markdown directly.
   [ -d "$src_dir" ] || return 0
 
   for src in "$src_dir"/*.md; do
     [ -f "$src" ] || continue
     skill_name="$(basename "$src" .md)"
-    write_codex_skill "$src" "$dest_root/$skill_name/SKILL.md"
+    write_skill_package "$src" "$dest_root/$skill_name/SKILL.md"
   done
 
   if [ -d "$dest_root" ]; then
@@ -160,8 +160,8 @@ sync_codex_skills() {
       skill_name="$(basename "$skill_dir")"
       skill_file="$skill_dir/SKILL.md"
 
-      # Only delete stale Codex skills that this sync script previously
-      # generated. Target repos can keep their own custom .agents/skills.
+      # Only delete stale skill packages that this sync script previously
+      # generated. Target repos can keep their own custom skills.
       if [ ! -f "$src_dir/$skill_name.md" ] &&
         [ -f "$skill_file" ] &&
         grep -q 'Generated from agent-docs/skills/' "$skill_file"; then
@@ -201,13 +201,14 @@ remove_legacy_skill_source_copies "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/a
 copy_managed "$SOURCE_DIR/.claude/settings.json"           "$TARGET_DIR/.claude/settings.json"
 copy_managed "$SOURCE_DIR/scripts/sync-agent-config.sh"    "$TARGET_DIR/scripts/sync-agent-config.sh"
 
-# Claude reads plain markdown skills, so copy the shared source as a managed
-# output rather than keeping duplicate files in COMMON_AGENT_CONFIG.
-sync_managed_dir "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.claude/skills"
+# Older sync versions copied Claude skills as flat markdown files. Remove only
+# exact generated copies before writing the official SKILL.md package layout.
+remove_legacy_skill_source_copies "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.claude/skills"
 
-# Codex reads SKILL.md folders, so generate Codex-specific wrappers at sync
-# time from the same shared source.
-sync_codex_skills "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.agents/skills"
+# Claude Code and Codex read SKILL.md folders, so generate wrappers at sync time
+# from the same shared source for both agent-specific locations.
+sync_skill_packages "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.claude/skills"
+sync_skill_packages "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.agents/skills"
 
 # ---------------------------------------------------------------------------
 # Summary
