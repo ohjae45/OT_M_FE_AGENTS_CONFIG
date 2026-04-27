@@ -172,8 +172,31 @@ sync_codex_skills() {
   fi
 }
 
+remove_legacy_skill_source_copies() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local src
+  local dest
+
+  # Older sync versions copied shared skill sources into target agent-docs.
+  # Remove only exact generated copies so target-owned custom files survive.
+  [ -d "$src_dir" ] || return 0
+  [ -d "$dest_dir" ] || return 0
+
+  for src in "$src_dir"/*.md; do
+    [ -f "$src" ] || continue
+    dest="$dest_dir/$(basename "$src")"
+    if [ -f "$dest" ] && cmp -s "$src" "$dest"; then
+      rm "$dest"
+      MANAGED_DELETED+=("${dest#"$TARGET_DIR/"}")
+    fi
+  done
+
+  rmdir "$dest_dir" 2>/dev/null || true
+}
+
 sync_managed_dir "$SOURCE_DIR/agent-docs/guides" "$TARGET_DIR/agent-docs/guides"
-sync_managed_dir "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/agent-docs/skills"
+remove_legacy_skill_source_copies "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/agent-docs/skills"
 
 copy_managed "$SOURCE_DIR/.claude/settings.json"           "$TARGET_DIR/.claude/settings.json"
 copy_managed "$SOURCE_DIR/scripts/sync-agent-config.sh"    "$TARGET_DIR/scripts/sync-agent-config.sh"
