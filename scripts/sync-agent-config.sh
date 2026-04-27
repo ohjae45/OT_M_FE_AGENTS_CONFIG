@@ -22,10 +22,8 @@ echo "Cloning COMMON_AGENT_CONFIG (--depth 1)..."
 git clone --depth 1 --branch "$REMOTE_BRANCH" "$REMOTE_REPO" "$TMP_DIR/config" --quiet
 SOURCE_DIR="$TMP_DIR/config"
 
-CREATED_SEEDS=()
-SKIPPED_SEEDS=()
-SYNCED_MANAGED=()
-DELETED_MANAGED=()
+# Each entry: "<icon> <relative-path>"
+CHANGE_LOG=()
 
 # ---------------------------------------------------------------------------
 # Phase 1: Seed files — copy only when target file does not exist
@@ -34,11 +32,11 @@ copy_seed() {
   local src="$1"
   local dest="$2"
   if [ -f "$dest" ]; then
-    SKIPPED_SEEDS+=("$dest")
+    CHANGE_LOG+=("  ⏭️  ${dest#"$TARGET_DIR/"}")
   else
     mkdir -p "$(dirname "$dest")"
     cp "$src" "$dest"
-    CREATED_SEEDS+=("$dest")
+    CHANGE_LOG+=("  ✅  ${dest#"$TARGET_DIR/"}")
   fi
 }
 
@@ -51,28 +49,36 @@ copy_seed "$SOURCE_DIR/templates/CLAUDE.md"  "$TARGET_DIR/CLAUDE.md"
 copy_managed() {
   local src="$1"
   local dest="$2"
+  local icon
+  if [ -f "$dest" ]; then
+    if cmp -s "$src" "$dest"; then
+      icon="  ·  "
+    else
+      icon="  ✏️  "
+    fi
+  else
+    icon="  ✅  "
+  fi
   mkdir -p "$(dirname "$dest")"
   cp "$src" "$dest"
-  SYNCED_MANAGED+=("$dest")
+  CHANGE_LOG+=("$icon${dest#"$TARGET_DIR/"}")
 }
 
 sync_managed_dir() {
   local src_dir="$1"
   local dest_dir="$2"
 
-  # Copy/overwrite files from source
   for f in "$src_dir"/*; do
     [ -f "$f" ] || continue
     copy_managed "$f" "$dest_dir/$(basename "$f")"
   done
 
-  # Delete files in target that no longer exist in source
   if [ -d "$dest_dir" ]; then
     for f in "$dest_dir"/*; do
       [ -f "$f" ] || continue
       if [ ! -f "$src_dir/$(basename "$f")" ]; then
         rm "$f"
-        DELETED_MANAGED+=("$f")
+        CHANGE_LOG+=("  🗑️  ${f#"$TARGET_DIR/"}")
       fi
     done
   fi
@@ -80,8 +86,8 @@ sync_managed_dir() {
 
 sync_managed_dir "$SOURCE_DIR/agent-docs/guides" "$TARGET_DIR/agent-docs/guides"
 
-copy_managed "$SOURCE_DIR/.claude/settings.json" "$TARGET_DIR/.claude/settings.json"
-copy_managed "$SOURCE_DIR/scripts/sync-agent-config.sh" "$TARGET_DIR/scripts/sync-agent-config.sh"
+copy_managed "$SOURCE_DIR/.claude/settings.json"           "$TARGET_DIR/.claude/settings.json"
+copy_managed "$SOURCE_DIR/scripts/sync-agent-config.sh"    "$TARGET_DIR/scripts/sync-agent-config.sh"
 
 sync_managed_dir "$SOURCE_DIR/.claude/skills" "$TARGET_DIR/.claude/skills"
 
@@ -90,38 +96,17 @@ sync_managed_dir "$SOURCE_DIR/.claude/skills" "$TARGET_DIR/.claude/skills"
 # ---------------------------------------------------------------------------
 echo ""
 echo "=== Sync Complete ==="
+echo ""
+echo "  ✅  added"
+echo "  ✏️  modified"
+echo "  🗑️  deleted"
+echo "  ·   unchanged"
+echo "  ⏭️  seed skipped (already exists)"
+echo ""
 
-if [ ${#CREATED_SEEDS[@]} -gt 0 ]; then
-  echo ""
-  echo "[created seed]"
-  for f in "${CREATED_SEEDS[@]}"; do
-    echo "  + ${f#"$TARGET_DIR/"}"
-  done
-fi
-
-if [ ${#SKIPPED_SEEDS[@]} -gt 0 ]; then
-  echo ""
-  echo "[skipped seed]"
-  for f in "${SKIPPED_SEEDS[@]}"; do
-    echo "  - ${f#"$TARGET_DIR/"} (already exists, not overwritten)"
-  done
-fi
-
-if [ ${#SYNCED_MANAGED[@]} -gt 0 ]; then
-  echo ""
-  echo "[synced managed]"
-  for f in "${SYNCED_MANAGED[@]}"; do
-    echo "  ~ ${f#"$TARGET_DIR/"}"
-  done
-fi
-
-if [ ${#DELETED_MANAGED[@]} -gt 0 ]; then
-  echo ""
-  echo "[deleted managed]"
-  for f in "${DELETED_MANAGED[@]}"; do
-    echo "  x ${f#"$TARGET_DIR/"}"
-  done
-fi
+for entry in "${CHANGE_LOG[@]}"; do
+  echo "$entry"
+done
 
 echo ""
 echo "Review changes with 'git diff', then commit and open a PR manually."
