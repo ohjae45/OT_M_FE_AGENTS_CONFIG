@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm lint*)",
+      "Bash(pnpm typecheck*)",
+      "Bash(pnpm build*)",
+      "Bash(pnpm dev*)",
+      "Bash(pnpm exec eslint*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git status*)",
+      "Bash(git branch*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILES=$(git diff --name-only HEAD 2>/dev/null | grep -E '\\.(ts|tsx)$' | tr '\\n' ' '); if [ -n \"$FILES\" ]; then pnpm exec eslint --fix $FILES 2>&1 | head -30; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
