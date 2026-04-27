@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Clones COMMON_AGENT_CONFIG and syncs files into this project.
-# Usage: bash scripts/sync-agent-config-from-remote.sh
+# Usage: bash scripts/sync-agent-config.sh
 #        (run from project root)
 set -euo pipefail
 
@@ -55,13 +55,13 @@ copy_managed() {
   SYNCED_MANAGED+=("$dest")
 }
 
-for f in "$SOURCE_DIR"/ai-guides/*; do
+for f in "$SOURCE_DIR"/agent-docs/guides/*; do
   [ -f "$f" ] || continue
-  copy_managed "$f" "$TARGET_DIR/docs/ai-guides/$(basename "$f")"
+  copy_managed "$f" "$TARGET_DIR/agent-docs/guides/$(basename "$f")"
 done
 
 copy_managed "$SOURCE_DIR/.claude/settings.json" "$TARGET_DIR/.claude/settings.json"
-copy_managed "$SOURCE_DIR/scripts/sync-agent-config-from-remote.sh" "$TARGET_DIR/scripts/sync-agent-config-from-remote.sh"
+copy_managed "$SOURCE_DIR/scripts/sync-agent-config.sh" "$TARGET_DIR/scripts/sync-agent-config.sh"
 
 for f in "$SOURCE_DIR"/.claude/skills/*; do
   [ -f "$f" ] || continue

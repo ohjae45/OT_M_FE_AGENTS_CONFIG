@@ -6,13 +6,13 @@
 
 ```
 COMMON_AGENT_CONFIG/
-├── ai-guides/          # 공통 개발 가이드 (managed)
+├── agent-docs/guides/          # 공통 개발 가이드 (managed)
 ├── templates/          # 초기 세팅용 템플릿 (seed)
 ├── .claude/
 │   ├── settings.json   # Claude 공통 설정 (managed)
 │   └── skills/         # Claude 공통 스킬 (managed)
 └── scripts/
-    └── sync-agent-config-from-remote.sh   # 동기화 스크립트 초안
+    └── sync-agent-config.sh   # 동기화 스크립트 초안
 ```
 
 ## Target repo에 적용되는 구조
@@ -22,7 +22,7 @@ target-repo/
 ├── AGENTS.md               ← templates/AGENTS.md (seed)
 ├── CLAUDE.md               ← templates/CLAUDE.md (seed)
 ├── docs/
-│   └── ai-guides/          ← ai-guides/* (managed)
+│   └── agent-docs/guides/          ← agent-docs/guides/* (managed)
 └── .claude/
     ├── settings.json       ← .claude/settings.json (managed)
     └── skills/             ← .claude/skills/* (managed)
@@ -34,13 +34,13 @@ target-repo/
 
 - `templates/AGENTS.md` → `AGENTS.md`
 - `templates/CLAUDE.md` → `CLAUDE.md`
-- `scripts/sync-agent-config-from-remote.sh` → `scripts/sync-agent-config-from-remote.sh`
+- `scripts/sync-agent-config.sh` → `scripts/sync-agent-config.sh`
 
 ### Managed files
 
 항상 최신으로 덮어씁니다.
 
-- `ai-guides/*` → `docs/ai-guides/*`
+- `agent-docs/guides/*` → `agent-docs/guides/*`
 - `.claude/settings.json` → `.claude/settings.json`
 - `.claude/skills/*` → `.claude/skills/*`
 
@@ -56,8 +56,8 @@ git clone --depth 1 git@github.com:woic-ej/COMMON_AGENT_CONFIG.git /tmp/common-c
 
 # 2. 스크립트를 내 프로젝트에 복사
 mkdir -p scripts
-cp /tmp/common-config/scripts/sync-agent-config-from-remote.sh scripts/
-chmod +x scripts/sync-agent-config-from-remote.sh
+cp /tmp/common-config/scripts/sync-agent-config.sh scripts/
+chmod +x scripts/sync-agent-config.sh
 
 # 3. 임시 디렉토리 삭제
 rm -rf /tmp/common-config
@@ -68,7 +68,7 @@ package.json에 스크립트를 추가합니다.
 ```json
 {
   "scripts": {
-    "agent:sync": "bash scripts/sync-agent-config-from-remote.sh"
+    "agent:sync": "bash scripts/sync-agent-config.sh"
   }
 }
 ```
