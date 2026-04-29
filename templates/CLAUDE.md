@@ -6,9 +6,3 @@
 @AGENTS.md
 
 ---
-
-## 스킬
-
-- `/commit` — 현재 변경사항 분석 후 Conventional Commit 메시지 생성
-- `/review` — 코드 리뷰 (가독성, 타입 안전성, 컨벤션 준수 관점)
-- `/pr` — 작업 내용 기반 PR 설명 텍스트 생성

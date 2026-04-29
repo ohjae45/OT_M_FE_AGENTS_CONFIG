@@ -1,7 +1,7 @@
 # AGENTS.md
 
 이 문서는 이 프로젝트에서 AI coding agent가 우선 따라야 할 작업 원칙을 정의한다.
-상세 규칙은 `docs/ai-guides/` 아래 문서를 참고한다.
+상세 규칙은 [agent-docs/rules/](../agent-docs/rules/) 아래 문서를 참고한다.
 
 ---
 
@@ -50,7 +50,7 @@ pages/
 
 <!--
 이 프로젝트의 API 작성 규칙을 정의한다.
-공통 ai-guides에 없는 프로젝트 전용 패턴만 적는다.
+공통 규칙 문서에 없는 프로젝트 전용 패턴만 적는다.
 
 아래 항목을 채운다.
 - 파일 분리 규칙 (예: *.api.ts / *.query.ts)
@@ -62,7 +62,7 @@ pages/
 ## 프로젝트 설정
 
 <!--
-공통 ai-guides의 내용과 다른 부분만 적는다.
+공통 규칙 문서의 내용과 다른 부분만 적는다.
 패키지 매니저, 브랜치 전략은 공통 규칙과 동일하면 생략해도 된다.
 
 아래 항목 중 이 프로젝트에만 해당하는 것만 채운다.
@@ -97,23 +97,14 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 | `@/*` | `src/*` |
 -->
 
-## 작업 원칙
-
-- 현재 프로젝트 요구사항을 최우선으로 따른다.
-- 기존 코드 구조와 패턴을 먼저 확인한 뒤 작업한다.
-- 새 폴더, 새 레이어, 새 추상화 추가 전 기존 구조와 충돌 여부를 먼저 검토한다.
-- 미래를 위한 과한 추상화보다 현재 요구사항 충족을 우선한다.
-- 큰 구조 변경이 필요하면 바로 구현하지 말고 먼저 구조안을 제시한다.
-- 작업 전 기존 컴포넌트, 훅, 유틸 재사용 가능 여부를 먼저 확인한다.
-- 작업 후 `pnpm lint`와 `pnpm typecheck`를 우선 확인한다.
-
 ## 공통 규칙 문서
 
-- 공통 프론트엔드 규칙: `docs/ai-guides/frontend-common-rules.md`
-- TypeScript 규칙: `docs/ai-guides/typescript-rules.md`
-- 스타일 규칙: `docs/ai-guides/styling-rules.md`
-- 상태 관리 규칙: `docs/ai-guides/state-management-rules.md`
-- 작업 흐름 규칙: `docs/ai-guides/workflow-rules.md`
+- 공통 프론트엔드 규칙: [agent-docs/rules/frontend-common-rules.md](../agent-docs/rules/frontend-common-rules.md)
+- TypeScript 규칙: [agent-docs/rules/typescript-rules.md](../agent-docs/rules/typescript-rules.md)
+- 스타일 규칙: [agent-docs/rules/styling-rules.md](../agent-docs/rules/styling-rules.md)
+- 상태 관리 규칙: [agent-docs/rules/state-management-rules.md](../agent-docs/rules/state-management-rules.md)
+- 작업 흐름 규칙: [agent-docs/rules/workflow-rules.md](../agent-docs/rules/workflow-rules.md)
+- Git 키워드 규칙: [agent-docs/rules/git-keyword-rules.md](../agent-docs/rules/git-keyword-rules.md)
 
 ## 우선순위
 
@@ -121,5 +112,4 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 
 1. 현재 프로젝트 요구사항
 2. 이 문서
-3. `docs/ai-guides/` 아래 상세 규칙 문서
-4. 개인 로컬 규칙
+3. [agent-docs/rules/](../agent-docs/rules/) 아래 상세 규칙 문서

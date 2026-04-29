@@ -3,11 +3,12 @@
 이 문서는 CSS, SCSS 작성 시 따라야 할 핵심 규칙을 정의한다.
 SCSS는 CSS 컨벤션을 기본으로 따르며, 중첩과 `@include`, `@mixin` 사용 방식만 추가로 적용한다.
 
-## 기본 원칙
+## 기본 규칙
 
 - 스타일은 SCSS Modules를 우선 사용한다.
 - 인라인 스타일 사용은 지양한다.
 - 전역 스타일은 reset, common, font 등 공용 목적에 한해 제한적으로 사용한다.
+- 불필요한 전역 스타일은 작성하지 않는다.
 - class, id, SCSS 변수명은 `kebab-case`를 사용한다.
 - React에서 케밥 케이스 클래스는 `styles['class-name']` 형태로 접근한다.
 
