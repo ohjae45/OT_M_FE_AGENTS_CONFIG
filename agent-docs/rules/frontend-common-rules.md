@@ -80,8 +80,15 @@
 
 Alias를 추가할 때는 아래 두 설정을 함께 수정한다.
 
-- `tsconfig.json` 또는 `tsconfig.app.json`
+- `tsconfig.json`
 - `vite.config.ts`
+
+### TypeScript 설정 기준
+
+- path alias의 기준 파일은 항상 `tsconfig.json`이다.
+- `tsconfig.app.json`에는 `compilerOptions.paths`를 중복 선언하지 않는다.
+- `tsconfig.app.json`이 있는 프로젝트는 `extends`로 `tsconfig.json`을 참조한다.
+- 프로젝트별 세부 옵션이 필요해도 alias 설정은 `tsconfig.json`에만 둔다.
 
 ### 예시
 
@@ -92,6 +99,14 @@ Alias를 추가할 때는 아래 두 설정을 함께 수정한다.
       "@services/*": ["src/services/*"]
     }
   }
+}
+```
+
+`tsconfig.app.json`이 별도로 존재하는 경우에는 아래처럼 공통 설정을 상속한다.
+
+```json
+{
+  "extends": "./tsconfig.json"
 }
 ```
 
