@@ -99,17 +99,23 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 
 ## 공통 규칙 문서
 
-- 공통 프론트엔드 규칙: [agent-docs/rules/frontend-common-rules.md](../agent-docs/rules/frontend-common-rules.md)
-- TypeScript 규칙: [agent-docs/rules/typescript-rules.md](../agent-docs/rules/typescript-rules.md)
-- 스타일 규칙: [agent-docs/rules/styling-rules.md](../agent-docs/rules/styling-rules.md)
-- 상태 관리 규칙: [agent-docs/rules/state-management-rules.md](../agent-docs/rules/state-management-rules.md)
-- 작업 흐름 규칙: [agent-docs/rules/workflow-rules.md](../agent-docs/rules/workflow-rules.md)
-- Git 키워드 규칙: [agent-docs/rules/git-keyword-rules.md](../agent-docs/rules/git-keyword-rules.md)
+작업 내용에 따라 관련 문서를 먼저 확인한다.
+
+| 작업 유형                                | 참고 문서                                                                  |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| React 컴포넌트, 폴더 구조, 네이밍        | [frontend-common-rules.md](../agent-docs/rules/frontend-common-rules.md)   |
+| TypeScript 타입, any, unknown, 타입 가드 | [typescript-rules.md](../agent-docs/rules/typescript-rules.md)             |
+| SCSS, SCSS Modules, className, mixin     | [styling-rules.md](../agent-docs/rules/styling-rules.md)                   |
+| Zustand, TanStack Query, 전역 상태       | [state-management-rules.md](../agent-docs/rules/state-management-rules.md) |
+| 작업 절차, 검증, 문서화                  | [workflow-rules.md](../agent-docs/rules/workflow-rules.md)                 |
+| Git 커밋 메시지, 작업 키워드             | [git-keyword-rules.md](../agent-docs/rules/git-keyword-rules.md)           |
 
 ## 우선순위
 
 여러 규칙이 충돌하면 아래 순서를 따른다.
 
-1. 현재 프로젝트 요구사항
-2. 이 문서
-3. [agent-docs/rules/](../agent-docs/rules/) 아래 상세 규칙 문서
+1. 현재 사용자 요청
+2. 현재 프로젝트 요구사항
+3. 이 `AGENTS.md`
+4. 관련 상세 규칙 문서 : [agent-docs/rules/](../agent-docs/rules/)
+5. 기존 코드 패턴
