@@ -20,6 +20,7 @@
 | --------------- | --------------------------------------------- |
 | TypeScript      | `agent-docs/rules/typescript-rules.md`       |
 | 프론트엔드 공통 | `agent-docs/rules/frontend-common-rules.md`  |
+| API 구조        | `agent-docs/rules/api-rules.md`              |
 | 스타일링        | `agent-docs/rules/styling-rules.md`          |
 | 상태 관리       | `agent-docs/rules/state-management-rules.md` |
 | 워크플로우      | `agent-docs/rules/workflow-rules.md`         |
