@@ -107,7 +107,7 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 | TypeScript 타입, any, unknown, 타입 가드 | [typescript-rules.md](../agent-docs/rules/typescript-rules.md)             |
 | SCSS, SCSS Modules, className, mixin     | [styling-rules.md](../agent-docs/rules/styling-rules.md)                   |
 | Zustand, TanStack Query, 전역 상태       | [state-management-rules.md](../agent-docs/rules/state-management-rules.md) |
-| 작업 절차, 검증, 문서화                  | [workflow-rules.md](../agent-docs/rules/workflow-rules.md)                 |
+| 작업 절차, 구조 변경, 검증, 문서화       | [workflow-rules.md](../agent-docs/rules/workflow-rules.md)                 |
 | Git 커밋 메시지, 작업 키워드             | [git-keyword-rules.md](../agent-docs/rules/git-keyword-rules.md)           |
 
 ## 우선순위
