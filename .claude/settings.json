@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "FILES=$(git diff --name-only HEAD 2>/dev/null | grep -E '\\.(ts|tsx)$' | tr '\\n' ' '); if [ -n \"$FILES\" ]; then pnpm exec eslint --fix $FILES 2>&1 | head -30; fi"
+            "command": "if [ -x node_modules/.bin/eslint ]; then FILES=$(git diff --name-only HEAD 2>/dev/null | grep -E '\\.(ts|tsx)$' | tr '\\n' ' '); if [ -n \"$FILES\" ]; then pnpm exec eslint --fix $FILES 2>&1 | head -30; fi; fi"
           }
         ]
       }

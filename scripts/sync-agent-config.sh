@@ -29,6 +29,7 @@ MANAGED_ADDED=()
 MANAGED_MODIFIED=()
 MANAGED_UNCHANGED=()
 MANAGED_DELETED=()
+HARNESS_APPENDED=()
 
 # Known skill names before the SKAI prefix migration. These are used only for
 # deleting generated legacy flat markdown copies, not target-owned custom skills.
@@ -64,6 +65,50 @@ copy_root_seed() {
 
 copy_root_seed "$SOURCE_DIR/templates/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_seed "$SOURCE_DIR/templates/CLAUDE.md"  "$TARGET_DIR/CLAUDE.md"
+
+# ---------------------------------------------------------------------------
+# Phase 1b: Harness section back-fill — for target repos that were seeded
+# before the FE-COMMON harness section existed in the templates.
+#
+# Seeds are never overwritten, so an existing AGENTS.md/CLAUDE.md from an
+# earlier sync would otherwise miss the trigger rules that activate the
+# fe-orchestrator pipeline. Detect the missing section and append it once.
+# ---------------------------------------------------------------------------
+extract_harness_section() {
+  # Capture from the harness heading to end of file. The leading separator is
+  # added at append time so the section attaches cleanly to existing content.
+  awk '/^## 하네스/{found=1} found {print}' "$1"
+}
+
+append_harness_section_if_missing() {
+  local src="$1"
+  local dest="$2"
+
+  [ -f "$dest" ] || return 0
+  if grep -q '^## 하네스' "$dest"; then
+    return 0
+  fi
+
+  local section
+  section="$(extract_harness_section "$src")"
+  [ -n "$section" ] || return 0
+
+  # Ensure a blank line before the appended separator regardless of whether
+  # the existing file ends with a newline.
+  if [ -s "$dest" ] && [ "$(tail -c1 "$dest"; echo x)" != $'\nx' ]; then
+    printf '\n' >> "$dest"
+  fi
+
+  {
+    printf '\n---\n\n'
+    printf '%s\n' "$section"
+  } >> "$dest"
+
+  HARNESS_APPENDED+=("${dest#"$TARGET_DIR/"}")
+}
+
+append_harness_section_if_missing "$SOURCE_DIR/templates/AGENTS.md" "$TARGET_DIR/AGENTS.md"
+append_harness_section_if_missing "$SOURCE_DIR/templates/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
 
 # ---------------------------------------------------------------------------
 # Phase 2: Managed files — always overwrite
@@ -237,6 +282,11 @@ remove_deprecated_unprefixed_skill_copies() {
 
 # Rule documents are managed as the shared source of truth for agent behavior.
 sync_managed_dir "$SOURCE_DIR/agent-docs/rules" "$TARGET_DIR/agent-docs/rules"
+
+# Frontend agent definitions are shared across projects and overwrite local
+# copies on every sync; project-specific domain knowledge belongs in AGENTS.md.
+sync_managed_dir "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.claude/agents"
+
 remove_legacy_skill_source_copies "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/agent-docs/skills"
 remove_deprecated_unprefixed_skill_copies "$TARGET_DIR/agent-docs/skills"
 
@@ -306,6 +356,7 @@ print_section "💤"  "Unchanged"                       "" "${MANAGED_UNCHANGED[
 print_section "✅"  "Added"                           "" "${MANAGED_ADDED[@]+"${MANAGED_ADDED[@]}"}"
 print_section "✏️"   "Modified"                        "" "${MANAGED_MODIFIED[@]+"${MANAGED_MODIFIED[@]}"}"
 print_section "❌"  "Deleted"                         "$RED" "${MANAGED_DELETED[@]+"${MANAGED_DELETED[@]}"}"
+print_section "🔧"  "Harness section appended"        "" "${HARNESS_APPENDED[@]+"${HARNESS_APPENDED[@]}"}"
 print_section "🌐"  "Global skills installed"         "" "${GLOBAL_INSTALLED[@]+"${GLOBAL_INSTALLED[@]}"}"
 
 echo ""
