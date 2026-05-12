@@ -254,6 +254,28 @@ sync_skill_packages "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.claude/skills"
 sync_skill_packages "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.agents/skills"
 
 # ---------------------------------------------------------------------------
+# Phase 3: Global skills — install to ~/.claude/skills/ for cross-project use
+#
+# Skills listed here are copied to the user's global Claude skills directory so
+# they are available in any project, including brand-new ones that have not yet
+# run agent:sync.  Add a skill name here when it needs to work before a project
+# is bootstrapped (e.g. project-init helpers).
+# ---------------------------------------------------------------------------
+GLOBAL_SKILL_NAMES=("skai-fe-init")
+GLOBAL_INSTALLED=()
+
+for skill_name in "${GLOBAL_SKILL_NAMES[@]}"; do
+  src="$TARGET_DIR/.claude/skills/$skill_name"
+  dest="$HOME/.claude/skills/$skill_name"
+  if [ -d "$src" ]; then
+    mkdir -p "$HOME/.claude/skills"
+    rm -rf "$dest"
+    cp -r "$src" "$dest"
+    GLOBAL_INSTALLED+=("$skill_name → ~/.claude/skills/$skill_name")
+  fi
+done
+
+# ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
 RED=$'\033[0;31m'
@@ -284,6 +306,7 @@ print_section "💤"  "Unchanged"                       "" "${MANAGED_UNCHANGED[
 print_section "✅"  "Added"                           "" "${MANAGED_ADDED[@]+"${MANAGED_ADDED[@]}"}"
 print_section "✏️"   "Modified"                        "" "${MANAGED_MODIFIED[@]+"${MANAGED_MODIFIED[@]}"}"
 print_section "❌"  "Deleted"                         "$RED" "${MANAGED_DELETED[@]+"${MANAGED_DELETED[@]}"}"
+print_section "🌐"  "Global skills installed"         "" "${GLOBAL_INSTALLED[@]+"${GLOBAL_INSTALLED[@]}"}"
 
 echo ""
 echo "Review changes with 'git diff', then commit and open a PR manually."
