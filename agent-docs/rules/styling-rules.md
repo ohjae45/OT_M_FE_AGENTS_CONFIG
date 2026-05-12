@@ -28,8 +28,9 @@
 
 ### 네이밍 컨벤션
 
-- React에서 SCSS Modules 클래스는 className과 같은 `camelCase` 키로 접근한다.
-- 예: `styles.assistantTitle`
+- SCSS Modules 파일 내 클래스명은 `camelCase`로 작성한다.
+- React 컴포넌트에서 SCSS Modules 클래스는 dot notation으로 접근한다.
+- 예: `styles.assistantTitle` (O), `styles['assistant-title']` (X)
 
 | 대상        | 규칙         | 예시             |
 | ----------- | ------------ | ---------------- |
@@ -59,6 +60,7 @@
 - 컴포넌트 전용 `.module.scss` 파일은 다른 컴포넌트에서 직접 import하지 않는다.
 - 두 개 이상 컴포넌트가 같은 스타일을 공유해야 하면 공용 목적이 드러나는 별도 스타일 파일로 분리한다.
 - 공용 스타일 파일명과 className은 컴포넌트명 기반이 아니라 역할 기반으로 작성한다.
+- 같은 모듈 내에서 기존 className을 다른 용도로 재사용할 때는 이름이 여전히 역할을 정확히 표현하는지 확인한다. 적용 범위가 달라졌다면 범용 이름으로 변경한다.
 - 예: `SearchBox.module.scss` 재사용 대신 `ControlField.module.scss`, `controlField`, `controlLabel`, `controlInput`
 - 예외적으로 임시 재사용이 필요하면 이유를 코드 주석이나 작업 기록에 남긴다.
 
