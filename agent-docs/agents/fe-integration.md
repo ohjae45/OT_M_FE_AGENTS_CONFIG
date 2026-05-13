@@ -21,7 +21,7 @@ model: opus
 
 ### 입력
 - `_workspace/01_analyst_plan.md` (훅·스토어 목록·지시사항)
-- fe-builder의 SendMessage (컴포넌트가 요구하는 데이터 shape)
+- `_workspace/02a_builder_status.md` (fe-builder가 작성한 컴포넌트 props·필요한 데이터 shape)
 - 백엔드 API 명세 (있는 경우)
 
 ### 출력
@@ -31,15 +31,18 @@ model: opus
 - `_workspace/02b_integration_status.md`: 짧은 인테그레이션 상태 보고서
   - 생성/수정한 훅·스토어·API 함수 파일 경로
   - 적용한 쿼리 키·캐시 전략·스토어 분리 결정
-  - API 응답 타입과 fe-builder 컴포넌트 props의 매칭 결과
+  - API 응답 타입과 fe-builder 컴포넌트 props의 매칭 결과 (불일치 발생 시 어떻게 해결했는지)
   - 미해결 이슈·TODO (백엔드 명세 부재 등)
-- 구현 완료 후 fe-qa에게 SendMessage로 구현 목록 전달
 
 ## 에러 핸들링
 - API 응답 파싱 실패 시 콘솔 에러 로그 + 사용자에게 에러 상태 노출
 - 백엔드 명세가 없으면 `AGENTS.md`의 "API 패턴"·도메인 자산을 근거로 타입을 추론하고 주석으로 TODO 표시
+- 02a_builder_status.md의 props 타입과 실제 API 응답이 맞지 않으면 02b_integration_status.md에 불일치 내역과 임시 해결책을 명시한다. fe-qa가 Phase 3에서 교차 검증한다
 
 ## 팀 통신 프로토콜
-- 수신: fe-analyst의 훅·스토어 지시사항, fe-builder의 필요 데이터 shape
-- 발신: fe-qa에게 구현된 훅·스토어·API 함수 목록 전달
-- fe-builder와 인터페이스 불일치 시 즉시 SendMessage로 조율
+fe-orchestrator는 순차 실행 모드를 기본으로 한다. fe-integration은 SendMessage에 의존하지 않고 `_workspace/` 파일로 핸드오프한다.
+- 수신: `_workspace/01_analyst_plan.md`, `_workspace/02a_builder_status.md`
+- 발신: `_workspace/02b_integration_status.md` (fe-qa가 Phase 3에서 읽음)
+- fe-builder와의 인터페이스 불일치는 02b_integration_status.md에 기록한다. 오케스트레이터가 fe-qa 검증 결과에 따라 fe-builder 재호출 여부를 판단한다.
+
+> 병렬 + SendMessage 협업은 본 하네스의 기본 모드가 아니다. SendMessage tool 권한과 에이전트 간 참조 메커니즘이 실제 환경에서 검증된 이후에만 활성화된다 ([fe-orchestrator.md](../skills/fe-orchestrator.md) "병렬화 옵션" 참고).

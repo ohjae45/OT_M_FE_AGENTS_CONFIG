@@ -24,15 +24,36 @@ echo "Cloning OT_M_FE_AGENTS_CONFIG (--depth 1)..."
 git clone --depth 1 --branch "$REMOTE_BRANCH" "$REMOTE_REPO" "$TMP_DIR/config" --quiet
 SOURCE_DIR="$TMP_DIR/config"
 
+# Fail fast if upstream sources are malformed. The lint catches ''' in agent
+# bodies (which would break TOML generation), missing/invalid frontmatter
+# fields, and skill files without a Description section. Skipping the check
+# would let a bad upstream commit propagate silently to every target repo.
+if [ -f "$SOURCE_DIR/scripts/lint-agent-frontmatter.sh" ]; then
+  echo "Linting upstream agent/skill sources..."
+  if ! bash "$SOURCE_DIR/scripts/lint-agent-frontmatter.sh"; then
+    echo "Sync aborted: upstream lint failed." >&2
+    exit 1
+  fi
+fi
+
 SEEDS_SKIPPED=()
 MANAGED_ADDED=()
 MANAGED_MODIFIED=()
 MANAGED_UNCHANGED=()
 MANAGED_DELETED=()
 HARNESS_APPENDED=()
+GITIGNORE_UPDATED=()
+CHANGELOG_UPDATED=()
+CHANGELOG_BACKFILLED=()
+
+# Workspace directories that fe-orchestrator generates on every run. They hold
+# transient analyst/builder/QA notes and must never be committed.
+HARNESS_WORKSPACE_ENTRIES=("_workspace/" "_workspace_prev/")
 
 # Known skill names before the SKAI prefix migration. These are used only for
 # deleting generated legacy flat markdown copies, not target-owned custom skills.
+# Mapping to current names: commit → skai-commit, review → skai-convention-review,
+# pr → skai-pr.
 DEPRECATED_UNPREFIXED_SKILLS=(commit review pr)
 
 # ---------------------------------------------------------------------------
@@ -65,6 +86,8 @@ copy_root_seed() {
 
 copy_root_seed "$SOURCE_DIR/templates/AGENTS.md" "$TARGET_DIR/AGENTS.md"
 copy_seed "$SOURCE_DIR/templates/CLAUDE.md"  "$TARGET_DIR/CLAUDE.md"
+copy_seed "$SOURCE_DIR/templates/gitignore"  "$TARGET_DIR/.gitignore"
+copy_seed "$SOURCE_DIR/templates/codex-config.toml" "$TARGET_DIR/.codex/config.toml"
 
 # ---------------------------------------------------------------------------
 # Phase 1b: Harness section back-fill — for target repos that were seeded
@@ -107,8 +130,163 @@ append_harness_section_if_missing() {
   HARNESS_APPENDED+=("${dest#"$TARGET_DIR/"}")
 }
 
+# The harness section now lives in AGENTS.md only; CLAUDE.md imports it via
+# `@AGENTS.md`. Old target CLAUDE.md files that already contain `## 하네스`
+# from prior syncs keep their content (seed policy never overwrites).
 append_harness_section_if_missing "$SOURCE_DIR/templates/AGENTS.md" "$TARGET_DIR/AGENTS.md"
-append_harness_section_if_missing "$SOURCE_DIR/templates/CLAUDE.md" "$TARGET_DIR/CLAUDE.md"
+
+# ---------------------------------------------------------------------------
+# Phase 1c: .gitignore workspace backfill — for target repos that already had
+# a .gitignore before the harness landed. fe-orchestrator writes runtime notes
+# under _workspace/ and rotates the previous run to _workspace_prev/, so both
+# must be ignored. Skip seeded repos (already covered) and any line that
+# already lists the entry in a recognised form.
+# ---------------------------------------------------------------------------
+gitignore_has_entry() {
+  local dest="$1"
+  local name="$2"
+  name="${name%/}"
+  # Accept the common idiomatic forms: foo, foo/, /foo, /foo/ — optionally
+  # followed by an inline comment. _workspace names contain no regex metas.
+  grep -Eq "^[[:space:]]*/?${name}/?[[:space:]]*(#.*)?$" "$dest"
+}
+
+ensure_gitignore_workspace_entries() {
+  local dest="$TARGET_DIR/.gitignore"
+  local missing=()
+  local entry
+
+  [ -f "$dest" ] || return 0
+
+  for entry in "${HARNESS_WORKSPACE_ENTRIES[@]}"; do
+    if ! gitignore_has_entry "$dest" "$entry"; then
+      missing+=("$entry")
+    fi
+  done
+
+  [ ${#missing[@]} -gt 0 ] || return 0
+
+  if [ -s "$dest" ] && [ "$(tail -c1 "$dest"; echo x)" != $'\nx' ]; then
+    printf '\n' >> "$dest"
+  fi
+
+  {
+    printf '\n# FE-COMMON 하네스 워크스페이스 (런타임 산출물, 커밋 금지)\n'
+    printf '%s\n' "${missing[@]}"
+  } >> "$dest"
+
+  GITIGNORE_UPDATED+=("${dest#"$TARGET_DIR/"}: $(IFS=,; echo "${missing[*]}")")
+}
+
+ensure_gitignore_workspace_entries
+
+# ---------------------------------------------------------------------------
+# Phase 1d: Harness changelog auto-sync
+#
+# The "변경 이력" table inside AGENTS.md "## 하네스" section used to be
+# maintained by hand, which left placeholder rows (`YYYY-MM-DD | ... | 초기
+# 시드`) in older targets. The canonical table now lives in
+# agent-docs/harness-changelog.md and is bounded by:
+#
+#     <!-- harness-changelog:upstream:start -->
+#     ...table...
+#     <!-- harness-changelog:upstream:end -->
+#
+# This phase replaces the contents between those markers in the target
+# AGENTS.md with the upstream block on every sync. Targets that predate the
+# markers are backfilled once: the "**변경 이력:**" paragraph is detected and
+# whatever markdown table follows it is replaced with the marker block.
+# AGENTS.md itself remains a seed (never recreated wholesale); only this
+# specific subsection is managed.
+# ---------------------------------------------------------------------------
+CHANGELOG_START='<!-- harness-changelog:upstream:start -->'
+CHANGELOG_END='<!-- harness-changelog:upstream:end -->'
+
+extract_changelog_block() {
+  # Pull the table between the markers in the upstream changelog file. Lines
+  # are emitted verbatim so column alignment from the source is preserved.
+  awk -v start="$CHANGELOG_START" -v end="$CHANGELOG_END" '
+    $0 == start { capture = 1; next }
+    $0 == end { capture = 0; exit }
+    capture { print }
+  ' "$1"
+}
+
+sync_harness_changelog_block() {
+  local source_file="$SOURCE_DIR/agent-docs/harness-changelog.md"
+  local dest="$TARGET_DIR/AGENTS.md"
+  local block_file
+  local generated
+
+  [ -f "$source_file" ] || return 0
+  [ -f "$dest" ] || return 0
+
+  # BSD awk (default on macOS) rejects newlines in `-v var=...` values, so the
+  # block is staged to a temp file and pulled in via getline rather than
+  # passed inline.
+  block_file="$TMP_DIR/harness-changelog-block.md"
+  extract_changelog_block "$source_file" > "$block_file"
+  [ -s "$block_file" ] || return 0
+
+  generated="$TMP_DIR/AGENTS.md.with-changelog"
+  local is_backfill=0
+
+  if grep -qF "$CHANGELOG_START" "$dest"; then
+    # Marker present: replace only the contents between the markers, leaving
+    # surrounding paragraphs (including any project-specific tables) intact.
+    awk -v start="$CHANGELOG_START" -v end="$CHANGELOG_END" -v blockfile="$block_file" '
+      function emit_block(   line) {
+        while ((getline line < blockfile) > 0) print line
+        close(blockfile)
+      }
+      $0 == start { print; emit_block(); in_block = 1; next }
+      $0 == end { in_block = 0; print; next }
+      !in_block { print }
+    ' "$dest" > "$generated"
+  elif grep -q '^\*\*변경 이력:' "$dest"; then
+    is_backfill=1
+    # Backfill path for targets seeded before markers existed. Drop the legacy
+    # table that follows the "변경 이력:" paragraph and emit the marker block
+    # in its place. Lines after the table (e.g. additional notes) are kept.
+    awk -v start="$CHANGELOG_START" -v end="$CHANGELOG_END" -v blockfile="$block_file" '
+      BEGIN { state = "before" }
+      function emit_markers(   line) {
+        print start
+        while ((getline line < blockfile) > 0) print line
+        close(blockfile)
+        print end
+        emitted = 1
+      }
+      state == "before" && /^\*\*변경 이력:/ { state = "after-paragraph"; print; next }
+      state == "after-paragraph" && /^\|/ { state = "in-table"; emit_markers(); next }
+      state == "in-table" && /^\|/ { next }
+      state == "in-table" { state = "after-table" }
+      { print }
+      END {
+        # No table existed at all — append the marker block at end of file so
+        # the canonical changelog still lands somewhere.
+        if (state == "after-paragraph" && !emitted) {
+          print ""
+          emit_markers()
+        }
+      }
+    ' "$dest" > "$generated"
+  else
+    # Target has no harness section yet (Phase 1b should have appended one
+    # already, but bail out defensively to avoid mutating unrelated content).
+    return 0
+  fi
+
+  if ! cmp -s "$generated" "$dest"; then
+    cp "$generated" "$dest"
+    CHANGELOG_UPDATED+=("${dest#"$TARGET_DIR/"}")
+    if [ "$is_backfill" = "1" ]; then
+      CHANGELOG_BACKFILLED+=("${dest#"$TARGET_DIR/"}")
+    fi
+  fi
+}
+
+sync_harness_changelog_block
 
 # ---------------------------------------------------------------------------
 # Phase 2: Managed files — always overwrite
@@ -280,12 +458,147 @@ remove_deprecated_unprefixed_skill_copies() {
   rmdir "$dest_dir" 2>/dev/null || true
 }
 
+# ---------------------------------------------------------------------------
+# Codex subagent TOML generation
+#
+# Codex reads .codex/agents/*.toml for project-scoped subagents. Each TOML
+# file requires `name`, `description`, and `developer_instructions`; dispatch
+# happens via natural-language calls ("Have fe-analyst do X"), so the body of
+# the shared markdown source becomes the agent's system prompt verbatim.
+# ---------------------------------------------------------------------------
+extract_md_frontmatter_field() {
+  local src="$1"
+  local field="$2"
+
+  # Only scan between the first and second `---` so body content that happens
+  # to start with `name:` cannot leak into the TOML output.
+  awk -v field="$field" '
+    /^---[[:space:]]*$/ { count++; if (count == 1) { in_fm = 1; next }; if (count == 2) exit }
+    in_fm && index($0, field ":") == 1 {
+      sub(/^[^:]+:[[:space:]]*/, "")
+      sub(/[[:space:]]+$/, "")
+      print
+      exit
+    }
+  ' "$src"
+}
+
+extract_md_body() {
+  # Capture everything after the closing frontmatter marker.
+  awk '
+    /^---[[:space:]]*$/ { count++; if (count == 2) { in_body = 1; next } }
+    in_body { print }
+  ' "$1"
+}
+
+escape_toml_basic_string() {
+  local s="$1"
+  s="${s//\\/\\\\}"
+  s="${s//\"/\\\"}"
+  printf '%s' "$s"
+}
+
+write_codex_agent_toml() {
+  local src="$1"
+  local dest="$2"
+  local agent_name
+  local description
+  local generated
+  local body
+
+  agent_name="$(extract_md_frontmatter_field "$src" name)"
+  description="$(extract_md_frontmatter_field "$src" description)"
+
+  if [ -z "$agent_name" ]; then
+    echo "skip: $src has no frontmatter name; cannot generate Codex TOML." >&2
+    return 0
+  fi
+  if [ -z "$description" ]; then
+    description="Subagent generated from agent-docs/agents/${agent_name}.md."
+  fi
+
+  body="$(extract_md_body "$src")"
+
+  # TOML multi-line literal strings (''' ... ''') preserve content verbatim,
+  # so markdown stays untouched. Refuse files that already contain ''' so the
+  # generated TOML cannot terminate early.
+  if printf '%s' "$body" | grep -q "'''"; then
+    echo "error: $src body contains ''' which would break TOML literal string." >&2
+    return 1
+  fi
+
+  generated="$TMP_DIR/${agent_name}.codex.toml"
+
+  {
+    printf '# Generated from agent-docs/agents/%s.md by scripts/sync-agent-config.sh.\n' "$agent_name"
+    printf '# Edit the source markdown instead.\n'
+    printf 'name = "%s"\n' "$(escape_toml_basic_string "$agent_name")"
+    printf 'description = "%s"\n' "$(escape_toml_basic_string "$description")"
+    printf "developer_instructions = '''\n"
+    printf '%s' "$body"
+    # extract_md_body already prints trailing newlines; ensure the closing
+    # delimiter sits on its own line.
+    if [ -n "$body" ] && [ "${body: -1}" != $'\n' ]; then
+      printf '\n'
+    fi
+    printf "'''\n"
+  } > "$generated"
+
+  copy_managed "$generated" "$dest"
+}
+
+sync_codex_agents() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local src
+  local agent_name
+  local f
+
+  [ -d "$src_dir" ] || return 0
+
+  for src in "$src_dir"/*.md; do
+    [ -f "$src" ] || continue
+    agent_name="$(extract_md_frontmatter_field "$src" name)"
+    [ -n "$agent_name" ] || continue
+    write_codex_agent_toml "$src" "$dest_dir/$agent_name.toml"
+  done
+
+  if [ -d "$dest_dir" ]; then
+    # Remove only previously generated TOML files whose source is gone. Custom
+    # project-owned Codex agents (no generation header) stay untouched.
+    for f in "$dest_dir"/*.toml; do
+      [ -f "$f" ] || continue
+      local fname
+      fname="$(basename "$f" .toml)"
+      if [ ! -f "$src_dir/$fname.md" ] &&
+         grep -q '^# Generated from agent-docs/agents/' "$f"; then
+        rm "$f"
+        MANAGED_DELETED+=("${f#"$TARGET_DIR/"}")
+      fi
+    done
+  fi
+}
+
 # Rule documents are managed as the shared source of truth for agent behavior.
 sync_managed_dir "$SOURCE_DIR/agent-docs/rules" "$TARGET_DIR/agent-docs/rules"
 
+# Writing guides for project-level docs (e.g. how to fill AGENTS.md sections).
+# Synced so target repos can reference examples locally while filling the seed.
+sync_managed_dir "$SOURCE_DIR/agent-docs/guides" "$TARGET_DIR/agent-docs/guides"
+
+# Harness changelog single source — AGENTS.md "변경 이력" 표 자동 동기화의 원본.
+# target 측에서도 같은 파일이 보여야 AGENTS.md 안의 링크가 깨지지 않으므로
+# managed 사본을 함께 둔다.
+copy_managed "$SOURCE_DIR/agent-docs/harness-changelog.md" "$TARGET_DIR/agent-docs/harness-changelog.md"
+
 # Frontend agent definitions are shared across projects and overwrite local
 # copies on every sync; project-specific domain knowledge belongs in AGENTS.md.
+# Claude Code reads .claude/agents/*.md verbatim and dispatches via the
+# subagent_type API. Codex reads .codex/agents/*.toml and dispatches via
+# natural-language calls; the TOML is generated from the same markdown source
+# in sync_codex_agents below so a single source of truth covers both tools.
 sync_managed_dir "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.claude/agents"
+sync_codex_agents "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.codex/agents"
 
 remove_legacy_skill_source_copies "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/agent-docs/skills"
 remove_deprecated_unprefixed_skill_copies "$TARGET_DIR/agent-docs/skills"
@@ -357,7 +670,17 @@ print_section "✅"  "Added"                           "" "${MANAGED_ADDED[@]+"$
 print_section "✏️"   "Modified"                        "" "${MANAGED_MODIFIED[@]+"${MANAGED_MODIFIED[@]}"}"
 print_section "❌"  "Deleted"                         "$RED" "${MANAGED_DELETED[@]+"${MANAGED_DELETED[@]}"}"
 print_section "🔧"  "Harness section appended"        "" "${HARNESS_APPENDED[@]+"${HARNESS_APPENDED[@]}"}"
+print_section "🛡️"   ".gitignore workspace entries appended" "" "${GITIGNORE_UPDATED[@]+"${GITIGNORE_UPDATED[@]}"}"
+print_section "📜"  "Harness changelog table updated" "" "${CHANGELOG_UPDATED[@]+"${CHANGELOG_UPDATED[@]}"}"
 print_section "🌐"  "Global skills installed"         "" "${GLOBAL_INSTALLED[@]+"${GLOBAL_INSTALLED[@]}"}"
+
+if [ ${#CHANGELOG_BACKFILLED[@]} -gt 0 ]; then
+  echo ""
+  printf '%s\n' "${RED}⚠️  변경 이력 표 backfill 경고${RESET}"
+  printf '    %s\n' "마커가 없던 AGENTS.md의 기존 변경 이력 표를 upstream 표로 교체했습니다."
+  printf '    %s\n' "프로젝트별로 추가했던 행(예: 프로젝트 특화 변경)이 있었다면 'git diff'로 확인하고,"
+  printf '    %s\n' "마커 바깥쪽에 별도 표(예: '## 프로젝트 변경 이력')를 만들어 옮겨주세요."
+fi
 
 echo ""
 echo "Review changes with 'git diff', then commit and open a PR manually."

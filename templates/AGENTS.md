@@ -3,6 +3,8 @@
 이 문서는 이 프로젝트에서 AI coding agent가 우선 따라야 할 작업 원칙을 정의한다.
 상세 규칙은 [agent-docs/rules/](../agent-docs/rules/) 아래 문서를 참고한다.
 
+> **빈 섹션 채우는 방법**: 아래 각 섹션의 HTML 코멘트(`<!-- ... -->`)에 짧은 안내가 있고, 두 종류 도메인의 익명화 예시 모음은 [agent-docs/guides/agents-md-writing.md](../agent-docs/guides/agents-md-writing.md)에 있다. 채울 게 없는 섹션은 코멘트만 남기고 비워둔다.
+
 ---
 
 ## 제품 개요
@@ -129,11 +131,21 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 **트리거:** 컴포넌트·페이지·API 연동·Zustand 스토어·TanStack Query 훅·SCSS 스타일·기능 추가/수정/보완/재구현 등 프론트엔드 개발 작업 요청 시 `fe-orchestrator` 스킬을 사용한다. 단순 질문이나 코드 설명은 직접 응답한다.
 
 **구성:**
-- 에이전트: `.agents/agents/fe-analyst.md`, `fe-builder.md`, `fe-integration.md`, `fe-qa.md` (Claude Code 환경에서는 `.claude/agents/` 하위에 존재)
-- 오케스트레이터: `.agents/skills/fe-orchestrator/SKILL.md` (Claude Code 환경에서는 `.claude/skills/fe-orchestrator/SKILL.md`)
+- 에이전트 원본: `agent-docs/agents/fe-{analyst,builder,integration,qa}.md` (sync 시 도구별 위치·포맷으로 분기 생성)
+- 오케스트레이터: `agent-docs/skills/fe-orchestrator.md` (sync 시 `.claude/skills/`·`.agents/skills/` 양쪽에 SKILL.md 패키지로 배포)
 - 도메인 지식 출처: `AGENTS.md`의 "핵심 도메인 개념" 섹션과 그 안에서 참조하는 문서
 
-**변경 이력:** 하네스 구성이 변경될 때마다 아래 표에 한 줄을 추가한다. (날짜는 `YYYY-MM-DD` 형식)
+**환경 범위:** Claude Code와 Codex CLI 두 환경에서 동작한다. Phase 흐름과 파일 핸드오프는 동일하고, dispatch만 다르다.
 
+| 도구 | 에이전트 위치 | dispatch |
+|------|--------------|----------|
+| Claude Code | `.claude/agents/fe-*.md` | `Agent(subagent_type="fe-analyst", ...)` 네이티브 도구 |
+| Codex CLI | `.codex/agents/fe-*.toml` | 자연어 지시 ("fe-analyst 서브에이전트로 X를 실행하라") |
+
+**변경 이력:** 아래 표는 [`agent-docs/harness-changelog.md`](../agent-docs/harness-changelog.md)에서 sync 시 자동 갱신된다. 마커 안쪽은 직접 편집하지 않는다 — 다음 sync에서 덮어써진다. 프로젝트별 변경 이력이 필요하면 마커 바깥에 별도 표를 둔다.
+
+<!-- harness-changelog:upstream:start -->
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
+| 2026-05-12 | 하네스 FE-COMMON 도입 | `agent-docs/agents/fe-{analyst,builder,integration,qa}.md`, `agent-docs/skills/fe-orchestrator.md`, `templates/AGENTS.md` 하네스 섹션 | FE 분석 → 빌드 → 통합 → 검증 파이프라인 표준화 |
+<!-- harness-changelog:upstream:end -->

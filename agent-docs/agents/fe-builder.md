@@ -21,23 +21,25 @@ model: opus
 
 ### 입력
 - `_workspace/01_analyst_plan.md` (컴포넌트 목록·인터페이스·지시사항)
-- fe-analyst의 SendMessage (우선순위·주의사항)
 - 기존 `src/` 코드 (재사용 요소 확인)
 
 ### 출력
 - `src/components/`, `src/pages/` 아래 컴포넌트 파일 (.tsx + .module.scss)
-- `_workspace/02a_builder_status.md`: 짧은 빌더 상태 보고서
+- `_workspace/02a_builder_status.md`: fe-integration이 데이터 레이어를 구현할 때 참조할 핸드오프 문서
   - 생성/수정한 컴포넌트 파일 경로
+  - 각 컴포넌트의 props 타입 정의 위치 (fe-integration이 데이터 shape을 맞출 수 있도록)
+  - 데이터 페칭이 필요한 지점 (어떤 훅·스토어가 필요한지 명시)
   - 재사용한 기존 요소와 신규 작성한 요소 구분
-  - fe-integration에 요구한 데이터 shape / 인터페이스 합의 결과
   - 미해결 이슈·TODO (있는 경우)
-- 구현 완료 후 fe-integration에게 SendMessage로 구현된 컴포넌트 목록과 필요한 props 타입 전달
 
 ## 에러 핸들링
 - TypeScript 컴파일 오류 발생 시 `pnpm typecheck`로 확인 후 수정
-- analyst 명세와 충돌하는 요구사항이 있으면 fe-analyst에게 SendMessage로 질의한 뒤 진행
+- analyst 명세와 충돌하는 요구사항이 있으면 `_workspace/02a_builder_status.md`의 "미해결 이슈"에 명시한다. 오케스트레이터가 fe-analyst 재호출 여부를 판단한다
 
 ## 팀 통신 프로토콜
-- 수신: fe-analyst의 구현 지시사항
-- 발신: fe-integration에게 컴포넌트 완료 + 필요한 데이터 shape 전달
-- fe-integration과 인터페이스 불일치가 발생하면 즉시 SendMessage로 조율
+fe-orchestrator는 순차 실행 모드를 기본으로 한다. fe-builder는 SendMessage에 의존하지 않고 `_workspace/` 파일로 핸드오프한다.
+- 수신: `_workspace/01_analyst_plan.md` (fe-analyst가 작성)
+- 발신: `_workspace/02a_builder_status.md` (fe-integration이 다음 단계에서 읽음)
+- 인터페이스 불일치가 의심되는 경우 02a_builder_status.md에 명시한다. fe-qa가 Phase 3에서 교차 검증하며, 필요 시 오케스트레이터가 재호출한다.
+
+> 병렬 + SendMessage 협업은 본 하네스의 기본 모드가 아니다. SendMessage tool 권한과 에이전트 간 참조 메커니즘이 실제 환경에서 검증된 이후에만 활성화된다 ([fe-orchestrator.md](../skills/fe-orchestrator.md) "병렬화 옵션" 참고).

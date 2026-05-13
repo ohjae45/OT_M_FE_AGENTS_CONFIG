@@ -27,10 +27,9 @@ fe-builder와 fe-integration이 구현한 결과물을 검증한다. "존재 확
 ## 입력/출력 프로토콜
 
 ### 입력
-- fe-integration의 SendMessage (구현 완료 알림 + 파일 목록)
-- 구현된 `src/` 파일들
 - `_workspace/01_analyst_plan.md` (원래 명세와 대조)
-- `_workspace/02a_builder_status.md`, `_workspace/02b_integration_status.md` (Phase 2 작업 범위·결정 사항 확인)
+- `_workspace/02a_builder_status.md`, `_workspace/02b_integration_status.md` (Phase 2 작업 범위·결정 사항·인터페이스 불일치 기록 확인)
+- 구현된 `src/` 파일들
 
 ### 출력
 `_workspace/03_qa_report.md`에 저장:
@@ -57,5 +56,8 @@ fe-builder와 fe-integration이 구현한 결과물을 검증한다. "존재 확
 - 빌드 환경 미구성 (초기 단계): 정적 분석(파일 읽기)으로 대체하고 보고서에 명시
 
 ## 협업
-- 검증 통과 시: 오케스트레이터에게 완료 보고
-- 수정 필요 시: 문제 유형에 따라 fe-builder 또는 fe-integration에게 SendMessage로 수정 요청, 재검증 후 최종 보고
+fe-orchestrator는 순차 실행 모드를 기본으로 한다. fe-qa는 SendMessage에 의존하지 않고 `_workspace/03_qa_report.md`에 결과를 남긴다.
+- 검증 통과(PASS): `_workspace/03_qa_report.md`에 PASS를 기록하면 오케스트레이터가 Phase 4로 이동한다.
+- 수정 필요(FAIL): 보고서의 "수정 필요 항목" 표에 파일·문제·수정 방법을 명시한다. 오케스트레이터가 문제 유형에 따라 fe-builder 또는 fe-integration을 재호출한 뒤 fe-qa를 다시 호출한다.
+
+> 병렬 + SendMessage 협업은 본 하네스의 기본 모드가 아니다 ([fe-orchestrator.md](../skills/fe-orchestrator.md) "병렬화 옵션" 참고).

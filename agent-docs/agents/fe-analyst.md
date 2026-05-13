@@ -63,5 +63,8 @@ model: opus
 - 도메인 문서 부재: `AGENTS.md`의 "핵심 도메인 개념"과 사용자 요청만으로 추론하고 추론 근거를 명시
 
 ## 팀 통신 프로토콜
-- 계획 완료 후 fe-builder와 fe-integration에게 SendMessage로 `_workspace/01_analyst_plan.md` 경로와 각자의 지시사항 요약을 전달
-- QA가 재분석 요청을 보내면 수정 계획을 `_workspace/01_analyst_plan_v{n}.md`로 저장 후 빌더팀에 재전달
+fe-orchestrator는 순차 실행 모드를 기본으로 한다. fe-analyst는 SendMessage에 의존하지 않고 `_workspace/` 파일로 다음 단계에 핸드오프한다.
+- 발신: `_workspace/01_analyst_plan.md` (fe-builder → fe-integration 순서로 읽음). 두 에이전트의 지시사항을 한 파일 안에서 명확히 구분해 작성한다 ("fe-builder 지시사항", "fe-integration 지시사항" 섹션).
+- 재분석 요청 처리: 오케스트레이터가 fe-qa 결과에 따라 fe-analyst를 재호출하면 수정 계획을 `_workspace/01_analyst_plan_v{n}.md`로 저장한다.
+
+> 병렬 + SendMessage 협업은 본 하네스의 기본 모드가 아니다 ([fe-orchestrator.md](../skills/fe-orchestrator.md) "병렬화 옵션" 참고).
