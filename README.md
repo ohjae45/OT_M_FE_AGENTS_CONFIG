@@ -211,6 +211,41 @@ mkdir -p scripts && curl -fsSL https://raw.githubusercontent.com/skaiworldwide/O
 
 처음 한 번만 받아두면 이후엔 그대로 `bash scripts/sync-agent-config.sh`(또는 아래 `pnpm agent:sync`)로 동기화할 수 있습니다. sync 자체가 `scripts/sync-agent-config.sh`를 managed로 갱신하므로 부트스트랩 스크립트는 첫 실행 이후 자동으로 최신 버전이 됩니다.
 
+#### 변형: 태그 pin / 사내 미러
+
+위 부트스트랩은 `main`의 최신 raw 파일을 그대로 받는 형태라 **supply-chain 관점에서는 가장 느슨한 옵션**입니다. 운영/배포 단계에서는 아래 두 가지 변형 중 하나를 권장합니다.
+
+**1) 태그 pin (권장: 운영 도입 시)**
+
+`/main/` 부분을 특정 릴리스 태그(또는 커밋 SHA)로 고정하면, 원본이 사후에 바뀌어도 부트스트랩 결과가 변하지 않습니다.
+
+```bash
+# 예: v0.1.0 태그로 고정 (REF에 태그명 또는 커밋 SHA)
+REF=v0.1.0 \
+  && mkdir -p scripts \
+  && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REF}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
+  && chmod +x scripts/sync-agent-config.sh \
+  && bash scripts/sync-agent-config.sh
+```
+
+`main`은 하네스/개발 단계에서만 사용하고, 신규 target repo 온보딩 시점에는 그 시점의 최신 태그로 pin하는 것을 기본으로 하세요. 첫 sync 이후에는 target repo의 `scripts/sync-agent-config.sh`가 managed로 갱신되므로, 이후 버전 업은 원본 레포에서 새 태그를 끊은 뒤 target에서 일반 sync(`pnpm agent:sync`)를 돌리면 됩니다.
+
+**2) 사내 미러 사용 (네트워크/거버넌스 제약 환경)**
+
+GitHub raw에 직접 닿을 수 없거나 사내 미러를 강제해야 하면, base URL만 환경변수로 치환합니다.
+
+```bash
+# 예: 사내 GitLab/Gitea/Artifactory raw 미러
+BASE_URL="https://git.internal.example.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/-/raw" \
+REF=v0.1.0 \
+  && mkdir -p scripts \
+  && curl -fsSL "${BASE_URL}/${REF}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
+  && chmod +x scripts/sync-agent-config.sh \
+  && bash scripts/sync-agent-config.sh
+```
+
+미러 경로 패턴(`/-/raw/`, `/raw/`, `/blob/<ref>/...?raw=true` 등)은 호스팅마다 달라지므로 사내 표준에 맞춰 `BASE_URL`만 바꿔 쓰면 됩니다. 미러를 쓸 때도 가능하면 `REF`는 태그/SHA로 pin하세요 — 미러가 자동 미러링이라면 미러 시점 차이로 인한 drift가 생길 수 있습니다.
+
 ### package.json에 스크립트 등록 (선택)
 
 ```json
@@ -293,6 +328,7 @@ bash scripts/sync-agent-config.sh --help                     # 옵션 도움말
 > **언제 어느 쪽을 쓰나:**
 > - **`--reset`**: target repo를 초기 시드 상태로 완전히 되돌리고 싶을 때 (드물게 사용)
 > - **`--reset-managed-only`**: managed 정의가 꼬여서 깨끗하게 재설치하고 싶지만 프로젝트별 AGENTS.md·커스텀 에이전트는 잃고 싶지 않을 때 (대부분의 reset 시나리오는 이쪽이 더 안전)
+> - **마이그레이션 (marker 도입 이전부터 sync 받던 target repo)**: Claude agent marker는 `5616d90`(2026-05-13)에 도입됐습니다. 그 이전에 sync한 target repo는 옛 managed 사본에 marker가 없어 cleanup 대상에서 빠지므로(fail-safe), marker 도입 후 **첫 sync 직후 한 번** `--reset-managed-only`를 실행해 옛 사본을 정리하는 것을 권장합니다. 이후 정상 sync는 marker 기반으로 정확히 cleanup됩니다.
 
 > **권장 사용 흐름:** reset 직전에 `git status`로 작업 중 변경이 없는지 확인하고, reset 후엔 `git diff`로 변경 폭을 확인합니다. **이후의 정상 sync는 비파괴적이므로 프로젝트별 커스텀이 사라지지 않습니다** — reset은 일회성 정리 용도입니다.
 

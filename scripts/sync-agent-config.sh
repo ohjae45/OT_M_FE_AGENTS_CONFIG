@@ -52,6 +52,10 @@ Options:
   -y, --yes              Skip the confirmation prompt (use only for automation).
   -h, --help             Print this help and exit.
 
+Both reset modes require a clean git working tree (no staged, unstaged, or
+untracked changes). This guard is unconditional — `--yes` does not bypass
+it. Run `git status` and commit/stash/discard before retrying.
+
 Without --reset / --reset-managed-only the sync is safe to run repeatedly:
 managed files are overwritten with upstream content, seed files (AGENTS.md,
 CLAUDE.md, etc.) are kept as-is, and project-specific custom agents/skills
@@ -94,6 +98,44 @@ fi
 # Setup
 # ---------------------------------------------------------------------------
 TARGET_DIR="$(pwd)"
+
+# Reset modes wipe paths irreversibly, including any uncommitted edits or
+# untracked custom agents/skills inside managed directories. Require a clean
+# working tree so the operator can recover via `git restore` / `git stash pop`
+# if the reset turns out to be wrong. Skipped when not in a git work tree —
+# users running this in a non-versioned dir have no recovery path either way.
+# `--yes` intentionally does NOT bypass: automation should clean its own state
+# before invoking a destructive reset.
+assert_clean_worktree_for_reset() {
+  local mode_label="$1"
+
+  if ! git -C "$TARGET_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if [ -z "$(git -C "$TARGET_DIR" status --porcelain 2>/dev/null)" ]; then
+    return 0
+  fi
+
+  echo "" >&2
+  echo "Error: ${mode_label} aborted — git working tree is not clean." >&2
+  echo "" >&2
+  echo "Reset deletes managed paths irreversibly and may overlap with your" >&2
+  echo "uncommitted or untracked changes. Commit, stash, or discard them first:" >&2
+  echo "" >&2
+  echo "  git status" >&2
+  echo "  git stash --include-untracked   # keep changes for later" >&2
+  echo "" >&2
+  exit 1
+}
+
+if [ "$RESET_MODE" = "1" ]; then
+  assert_clean_worktree_for_reset "--reset"
+fi
+if [ "$RESET_MANAGED_MODE" = "1" ]; then
+  assert_clean_worktree_for_reset "--reset-managed-only"
+fi
+
 TMP_DIR="$(mktemp -d)"
 cleanup() { rm -rf "$TMP_DIR"; }
 trap cleanup EXIT
@@ -731,6 +773,23 @@ escape_toml_basic_string() {
   printf '%s' "$s"
 }
 
+# TOML basic strings forbid raw control chars (U+0000-U+001F, U+007F), and
+# Claude Code renders frontmatter description on a single line in its subagent
+# menu. Awk extraction is line-based so a real LF cannot reach here, but CR
+# (CRLF source files) and TAB can — both produce invalid TOML. Normalize the
+# common cases and reject the rest so generation fails loudly.
+normalize_frontmatter_description() {
+  local s="$1"
+  s="${s//$'\r'/}"
+  s="${s//$'\t'/ }"
+  # `grep -q '[[:cntrl:]]'` would miss raw LF (grep is line-oriented), so use
+  # bash's regex engine which matches against the whole string.
+  if [[ "$s" =~ [[:cntrl:]] ]]; then
+    return 1
+  fi
+  printf '%s' "$s"
+}
+
 write_codex_agent_toml() {
   local src="$1"
   local dest="$2"
@@ -748,6 +807,10 @@ write_codex_agent_toml() {
   fi
   if [ -z "$description" ]; then
     description="Subagent generated from agent-docs/agents/${agent_name}.md."
+  fi
+  if ! description="$(normalize_frontmatter_description "$description")"; then
+    echo "error: $src description contains control characters that cannot be normalized." >&2
+    return 1
   fi
 
   body="$(extract_md_body "$src")"
@@ -929,13 +992,28 @@ sync_skill_packages "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/.agents/skills"
 # ---------------------------------------------------------------------------
 GLOBAL_SKILL_NAMES=("skai-fe-init")
 GLOBAL_INSTALLED=()
+GLOBAL_UNCHANGED=()
+GLOBAL_OVERWRITTEN=()
 
 for skill_name in "${GLOBAL_SKILL_NAMES[@]}"; do
   src="$TARGET_DIR/.claude/skills/$skill_name"
   dest="$HOME/.claude/skills/$skill_name"
-  if [ -d "$src" ]; then
-    mkdir -p "$HOME/.claude/skills"
-    rm -rf "$dest"
+  [ -d "$src" ] || continue
+
+  mkdir -p "$HOME/.claude/skills"
+  if [ -d "$dest" ]; then
+    # Compare recursively — if the existing global copy already matches
+    # upstream, leave it alone so a user-customized fork is not silently
+    # wiped on every sync. Different content triggers an overwrite that is
+    # surfaced separately in the summary.
+    if diff -rq "$src" "$dest" >/dev/null 2>&1; then
+      GLOBAL_UNCHANGED+=("$skill_name → ~/.claude/skills/$skill_name")
+    else
+      rm -rf "$dest"
+      cp -r "$src" "$dest"
+      GLOBAL_OVERWRITTEN+=("$skill_name → ~/.claude/skills/$skill_name (overwritten existing)")
+    fi
+  else
     cp -r "$src" "$dest"
     GLOBAL_INSTALLED+=("$skill_name → ~/.claude/skills/$skill_name")
   fi
@@ -977,6 +1055,16 @@ print_section "🔧"  "Harness section appended"        "" "${HARNESS_APPENDED[@
 print_section "🛡️"   ".gitignore workspace entries appended" "" "${GITIGNORE_UPDATED[@]+"${GITIGNORE_UPDATED[@]}"}"
 print_section "📜"  "Harness changelog table updated" "" "${CHANGELOG_UPDATED[@]+"${CHANGELOG_UPDATED[@]}"}"
 print_section "🌐"  "Global skills installed"         "" "${GLOBAL_INSTALLED[@]+"${GLOBAL_INSTALLED[@]}"}"
+print_section "💤"  "Global skills unchanged"         "" "${GLOBAL_UNCHANGED[@]+"${GLOBAL_UNCHANGED[@]}"}"
+print_section "♻️"   "Global skills overwritten"      "$RED" "${GLOBAL_OVERWRITTEN[@]+"${GLOBAL_OVERWRITTEN[@]}"}"
+
+if [ ${#GLOBAL_OVERWRITTEN[@]} -gt 0 ]; then
+  echo ""
+  printf '%s\n' "${RED}⚠️  글로벌 스킬 덮어쓰기 경고${RESET}"
+  printf '    %s\n' "~/.claude/skills/ 아래 기존 사본이 upstream 내용과 달라 덮어썼습니다."
+  printf '    %s\n' "사용자가 글로벌 스킬을 커스터마이즈했다면 변경분이 사라졌을 수 있습니다."
+  printf '    %s\n' "필요하면 git 등으로 원본을 복구한 뒤 upstream과 머지하거나, 다른 이름으로 분기해주세요."
+fi
 
 if [ ${#CHANGELOG_BACKFILLED[@]} -gt 0 ]; then
   echo ""
