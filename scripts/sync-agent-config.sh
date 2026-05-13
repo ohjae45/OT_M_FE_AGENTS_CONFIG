@@ -10,7 +10,7 @@ set -euo pipefail
 # Configuration — update REMOTE_REPO when the repo URL changes
 # ---------------------------------------------------------------------------
 REMOTE_REPO="https://github.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG.git"
-REMOTE_BRANCH="main"
+REMOTE_BRANCH="${REMOTE_BRANCH:-main}"
 
 # ---------------------------------------------------------------------------
 # Argument parsing

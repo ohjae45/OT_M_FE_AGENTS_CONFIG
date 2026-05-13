@@ -246,6 +246,21 @@ REF=v0.1.0 \
 
 미러 경로 패턴(`/-/raw/`, `/raw/`, `/blob/<ref>/...?raw=true` 등)은 호스팅마다 달라지므로 사내 표준에 맞춰 `BASE_URL`만 바꿔 쓰면 됩니다. 미러를 쓸 때도 가능하면 `REF`는 태그/SHA로 pin하세요 — 미러가 자동 미러링이라면 미러 시점 차이로 인한 drift가 생길 수 있습니다.
 
+**3) 비-기본 브랜치에서 sync (검증/PoC 용)**
+
+기본은 항상 `main`이지만, 머지 전인 작업 브랜치로 target repo에서 미리 동기화 결과를 확인하고 싶을 때 `REMOTE_BRANCH` 환경변수로 override할 수 있습니다. 부트스트랩 URL과 스크립트 내부 clone branch를 모두 같은 브랜치로 맞추려면 두 군데 다 지정합니다.
+
+```bash
+# 예: harness 브랜치로 부트스트랩 + sync
+REMOTE_BRANCH=harness \
+  && mkdir -p scripts \
+  && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REMOTE_BRANCH}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
+  && chmod +x scripts/sync-agent-config.sh \
+  && REMOTE_BRANCH="${REMOTE_BRANCH}" bash scripts/sync-agent-config.sh
+```
+
+이후 재sync도 `REMOTE_BRANCH=harness pnpm agent:sync` 형태로 같은 브랜치를 유지합니다. 머지 후엔 환경변수를 빼면 자동으로 `main`으로 돌아갑니다. 운영 적용에는 사용하지 말고, **작업 브랜치 검증 또는 PoC 용도**로만 쓰세요.
+
 ### package.json에 스크립트 등록 (선택)
 
 ```json
