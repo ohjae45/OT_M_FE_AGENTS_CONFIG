@@ -13,6 +13,84 @@ REMOTE_REPO="https://github.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG.git"
 REMOTE_BRANCH="main"
 
 # ---------------------------------------------------------------------------
+# Argument parsing
+#
+# Default sync is non-destructive — managed files overwrite, seed files are
+# preserved, and project-owned custom agents/skills survive. --reset is the
+# only mode that wipes user content and is intended for one-time clean
+# reinstalls.
+# ---------------------------------------------------------------------------
+RESET_MODE=0
+RESET_MANAGED_MODE=0
+ASSUME_YES=0
+
+print_usage() {
+  cat <<'USAGE'
+Usage: bash scripts/sync-agent-config.sh [--reset | --reset-managed-only] [--yes]
+
+Sync OT_M_FE_AGENTS_CONFIG into the current project (run from project root).
+
+Options:
+  --reset                Destructive one-time reinstall. Wipes every path
+                         this repo manages (AGENTS.md, CLAUDE.md, .gitignore,
+                         .codex/config.toml, .claude/settings.json,
+                         agent-docs/, .claude/agents/, .claude/skills/,
+                         .codex/agents/, .agents/skills/) — including
+                         user-added custom files inside those directories —
+                         then runs a fresh sync. Requires typing RESET to
+                         confirm.
+  --reset-managed-only   Wipe only sync-managed artifacts (agent-docs/rules,
+                         agent-docs/guides, agent-docs/harness-changelog.md,
+                         upstream fe-* agents under .claude/agents and
+                         .codex/agents, generated <skill>/SKILL.md packages,
+                         .claude/settings.json) then run a fresh sync.
+                         Seed files (AGENTS.md, CLAUDE.md, .gitignore,
+                         .codex/config.toml) and any project-added custom
+                         agents/skills whose names do not match upstream
+                         entries are preserved. Requires typing
+                         RESET-MANAGED to confirm.
+  -y, --yes              Skip the confirmation prompt (use only for automation).
+  -h, --help             Print this help and exit.
+
+Without --reset / --reset-managed-only the sync is safe to run repeatedly:
+managed files are overwritten with upstream content, seed files (AGENTS.md,
+CLAUDE.md, etc.) are kept as-is, and project-specific custom agents/skills
+are preserved.
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --reset)
+      RESET_MODE=1
+      shift
+      ;;
+    --reset-managed-only)
+      RESET_MANAGED_MODE=1
+      shift
+      ;;
+    -y|--yes)
+      ASSUME_YES=1
+      shift
+      ;;
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1" >&2
+      echo "Run with --help for usage." >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [ "$RESET_MODE" = "1" ] && [ "$RESET_MANAGED_MODE" = "1" ]; then
+  echo "Error: --reset and --reset-managed-only are mutually exclusive." >&2
+  exit 2
+fi
+
+# ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------
 TARGET_DIR="$(pwd)"
@@ -45,6 +123,161 @@ HARNESS_APPENDED=()
 GITIGNORE_UPDATED=()
 CHANGELOG_UPDATED=()
 CHANGELOG_BACKFILLED=()
+RESET_REMOVED=()
+
+# ---------------------------------------------------------------------------
+# Phase 0 (optional): --reset — wipe everything this repo owns before sync.
+#
+# Removes both managed artifacts and project-owned custom files inside the
+# managed directories so the subsequent sync starts from a clean slate. Only
+# touches paths this script writes to; leaves unrelated project content
+# (other .claude/ subdirs, scripts/, source code) untouched.
+# ---------------------------------------------------------------------------
+if [ "$RESET_MODE" = "1" ]; then
+  RESET_CANDIDATES=(
+    "AGENTS.md"
+    "CLAUDE.md"
+    ".gitignore"
+    ".codex/config.toml"
+    ".claude/settings.json"
+    "agent-docs"
+    ".claude/agents"
+    ".claude/skills"
+    ".codex/agents"
+    ".agents/skills"
+  )
+
+  RESET_EXISTING=()
+  for p in "${RESET_CANDIDATES[@]}"; do
+    if [ -e "$TARGET_DIR/$p" ]; then
+      RESET_EXISTING+=("$p")
+    fi
+  done
+
+  echo ""
+  echo "=== --reset will remove these paths from $TARGET_DIR ==="
+  if [ ${#RESET_EXISTING[@]} -eq 0 ]; then
+    echo "  (nothing to remove — target is already clean)"
+  else
+    for p in "${RESET_EXISTING[@]}"; do
+      echo "  - $p"
+    done
+    echo ""
+    echo "After removal a fresh sync recreates managed files from upstream."
+    echo "Project-specific edits inside these paths will be LOST — including"
+    echo "any custom agents/skills you added under .claude/ or .codex/."
+  fi
+  echo ""
+
+  if [ ${#RESET_EXISTING[@]} -gt 0 ] && [ "$ASSUME_YES" != "1" ]; then
+    if [ ! -t 0 ]; then
+      echo "Refusing to wipe without confirmation. Re-run with --yes for non-interactive use." >&2
+      exit 1
+    fi
+    printf 'Type RESET to confirm (anything else aborts): '
+    read -r answer
+    if [ "$answer" != "RESET" ]; then
+      echo "Aborted." >&2
+      exit 1
+    fi
+  fi
+
+  for p in "${RESET_EXISTING[@]}"; do
+    rm -rf "$TARGET_DIR/$p"
+    RESET_REMOVED+=("$p")
+  done
+
+  if [ ${#RESET_REMOVED[@]} -gt 0 ]; then
+    echo "Wiped ${#RESET_REMOVED[@]} path(s). Continuing with fresh sync..."
+    echo ""
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# Phase 0b (optional): --reset-managed-only — wipe only the artifacts this
+# repo generates and own, leaving seed files and project-owned custom
+# agents/skills intact.
+#
+# Concrete managed paths are enumerated from the upstream sources so files
+# whose names do not match an upstream entry (project-specific custom agents
+# or skills) survive. agent-docs/ is wiped at the subdirectory level rather
+# than wholesale so that any project-added notes inside agent-docs/ are also
+# preserved.
+# ---------------------------------------------------------------------------
+if [ "$RESET_MANAGED_MODE" = "1" ]; then
+  RESET_MANAGED_CANDIDATES=(
+    "agent-docs/rules"
+    "agent-docs/guides"
+    "agent-docs/harness-changelog.md"
+    ".claude/settings.json"
+  )
+
+  if [ -d "$SOURCE_DIR/agent-docs/agents" ]; then
+    for src in "$SOURCE_DIR/agent-docs/agents"/*.md; do
+      [ -f "$src" ] || continue
+      base="$(basename "$src" .md)"
+      RESET_MANAGED_CANDIDATES+=(".claude/agents/${base}.md")
+      RESET_MANAGED_CANDIDATES+=(".codex/agents/${base}.toml")
+    done
+  fi
+
+  if [ -d "$SOURCE_DIR/agent-docs/skills" ]; then
+    for src in "$SOURCE_DIR/agent-docs/skills"/*.md; do
+      [ -f "$src" ] || continue
+      base="$(basename "$src" .md)"
+      RESET_MANAGED_CANDIDATES+=(".claude/skills/${base}")
+      RESET_MANAGED_CANDIDATES+=(".agents/skills/${base}")
+    done
+  fi
+
+  RESET_EXISTING=()
+  for p in "${RESET_MANAGED_CANDIDATES[@]}"; do
+    if [ -e "$TARGET_DIR/$p" ]; then
+      RESET_EXISTING+=("$p")
+    fi
+  done
+
+  echo ""
+  echo "=== --reset-managed-only will remove these managed paths from $TARGET_DIR ==="
+  if [ ${#RESET_EXISTING[@]} -eq 0 ]; then
+    echo "  (nothing to remove — managed paths are already absent)"
+  else
+    for p in "${RESET_EXISTING[@]}"; do
+      echo "  - $p"
+    done
+    echo ""
+    echo "Preserved:"
+    echo "  - Seed files (AGENTS.md, CLAUDE.md, .gitignore, .codex/config.toml)"
+    echo "  - User custom agents/skills whose names do not match upstream entries"
+    echo "  - Any files under agent-docs/ outside rules/, guides/, harness-changelog.md"
+    echo ""
+    echo "After removal a fresh sync recreates managed files from upstream."
+  fi
+  echo ""
+
+  if [ ${#RESET_EXISTING[@]} -gt 0 ] && [ "$ASSUME_YES" != "1" ]; then
+    if [ ! -t 0 ]; then
+      echo "Refusing to wipe without confirmation. Re-run with --yes for non-interactive use." >&2
+      exit 1
+    fi
+    printf 'Type RESET-MANAGED to confirm (anything else aborts): '
+    read -r answer
+    if [ "$answer" != "RESET-MANAGED" ]; then
+      echo "Aborted." >&2
+      exit 1
+    fi
+  fi
+
+  for p in "${RESET_EXISTING[@]}"; do
+    rm -rf "$TARGET_DIR/$p"
+    RESET_REMOVED+=("$p")
+  done
+
+  if [ ${#RESET_REMOVED[@]} -gt 0 ]; then
+    echo "Wiped ${#RESET_REMOVED[@]} managed path(s). Continuing with fresh sync..."
+    echo ""
+  fi
+fi
 
 # Workspace directories that fe-orchestrator generates on every run. They hold
 # transient analyst/builder/QA notes and must never be committed.
@@ -579,6 +812,76 @@ sync_codex_agents() {
   fi
 }
 
+# ---------------------------------------------------------------------------
+# Claude Code agent markdown generation
+#
+# Claude Code reads .claude/agents/*.md verbatim, so the body cannot be
+# transformed. To distinguish managed copies from project-added custom
+# agents (which would otherwise be deleted by the cleanup loop), an HTML
+# comment marker is injected immediately after the frontmatter. Markdown
+# parsers treat it as a no-op, and the cleanup loop only deletes files that
+# carry the marker — custom agents added by the project survive.
+# ---------------------------------------------------------------------------
+write_claude_agent_md() {
+  local src="$1"
+  local dest="$2"
+  local agent_name
+  local generated
+
+  agent_name="$(basename "$src" .md)"
+  generated="$TMP_DIR/${agent_name}.claude.md"
+
+  awk -v src_path="agent-docs/agents/${agent_name}.md" '
+    BEGIN { fm = 0; injected = 0 }
+    /^---[[:space:]]*$/ {
+      print
+      fm++
+      if (fm == 2 && !injected) {
+        print ""
+        print "<!-- Generated from " src_path " by scripts/sync-agent-config.sh. Edit the source file instead. -->"
+        injected = 1
+      }
+      next
+    }
+    { print }
+  ' "$src" > "$generated"
+
+  copy_managed "$generated" "$dest"
+}
+
+sync_claude_agents() {
+  local src_dir="$1"
+  local dest_dir="$2"
+  local src
+  local f
+  local fname
+
+  [ -d "$src_dir" ] || return 0
+
+  for src in "$src_dir"/*.md; do
+    [ -f "$src" ] || continue
+    write_claude_agent_md "$src" "$dest_dir/$(basename "$src")"
+  done
+
+  if [ -d "$dest_dir" ]; then
+    # Remove only previously generated agent files whose source is gone.
+    # Custom project-owned Claude agents (no generation marker) stay untouched.
+    # Legacy managed files written by older sync versions (before the marker
+    # existed) also stay until manually cleaned — this is a deliberate
+    # fail-safe so an upstream removal does not silently delete pre-marker
+    # files that may still be in use.
+    for f in "$dest_dir"/*.md; do
+      [ -f "$f" ] || continue
+      fname="$(basename "$f" .md)"
+      if [ ! -f "$src_dir/$fname.md" ] &&
+         grep -q '^<!-- Generated from agent-docs/agents/' "$f"; then
+        rm "$f"
+        MANAGED_DELETED+=("${f#"$TARGET_DIR/"}")
+      fi
+    done
+  fi
+}
+
 # Rule documents are managed as the shared source of truth for agent behavior.
 sync_managed_dir "$SOURCE_DIR/agent-docs/rules" "$TARGET_DIR/agent-docs/rules"
 
@@ -597,8 +900,8 @@ copy_managed "$SOURCE_DIR/agent-docs/harness-changelog.md" "$TARGET_DIR/agent-do
 # subagent_type API. Codex reads .codex/agents/*.toml and dispatches via
 # natural-language calls; the TOML is generated from the same markdown source
 # in sync_codex_agents below so a single source of truth covers both tools.
-sync_managed_dir "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.claude/agents"
-sync_codex_agents "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.codex/agents"
+sync_claude_agents "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.claude/agents"
+sync_codex_agents  "$SOURCE_DIR/agent-docs/agents" "$TARGET_DIR/.codex/agents"
 
 remove_legacy_skill_source_copies "$SOURCE_DIR/agent-docs/skills" "$TARGET_DIR/agent-docs/skills"
 remove_deprecated_unprefixed_skill_copies "$TARGET_DIR/agent-docs/skills"
@@ -664,6 +967,7 @@ echo ""
 echo "=== Sync Complete ==="
 echo ""
 
+print_section "🧹"  "Reset removed (wiped before sync)" "$RED" "${RESET_REMOVED[@]+"${RESET_REMOVED[@]}"}"
 print_section "⏭️"   "Seed skipped (already exists)"  "" "${SEEDS_SKIPPED[@]+"${SEEDS_SKIPPED[@]}"}"
 print_section "💤"  "Unchanged"                       "" "${MANAGED_UNCHANGED[@]+"${MANAGED_UNCHANGED[@]}"}"
 print_section "✅"  "Added"                           "" "${MANAGED_ADDED[@]+"${MANAGED_ADDED[@]}"}"
