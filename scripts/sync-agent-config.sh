@@ -734,6 +734,28 @@ remove_deprecated_unprefixed_skill_copies() {
 }
 
 # ---------------------------------------------------------------------------
+# Cross-doc link rewrite for synced agent markdown
+#
+# Source agent files live under agent-docs/agents/ and reference sibling docs
+# with paths like `../rules/foo.md` or `../skills/fe-orchestrator.md`. Those
+# resolve correctly inside the source repo, but after sync the targets become
+# `.claude/agents/foo.md`/`.codex/agents/foo.toml` and the structure changes:
+#   - rules stay at agent-docs/rules/   (not copied under .claude/)
+#   - skills become <root>/skills/<name>/SKILL.md   (directory package)
+# Rewrite cross-doc links so IDE link-checkers and human readers both follow
+# them to the right place. Only `../rules/` and `../skills/<name>.md` patterns
+# are remapped; everything else passes through unchanged.
+# ---------------------------------------------------------------------------
+rewrite_agent_doc_links() {
+  local src="$1"
+  local dest="$2"
+  sed -E \
+    -e 's#\]\(\.\./rules/#](../../agent-docs/rules/#g' \
+    -e 's#\]\(\.\./skills/([A-Za-z0-9_-]+)\.md([)#])#](../skills/\1/SKILL.md\2#g' \
+    "$src" > "$dest"
+}
+
+# ---------------------------------------------------------------------------
 # Codex subagent TOML generation
 #
 # Codex reads .codex/agents/*.toml for project-scoped subagents. Each TOML
@@ -797,9 +819,16 @@ write_codex_agent_toml() {
   local description
   local generated
   local body
+  local rewritten
 
   agent_name="$(extract_md_frontmatter_field "$src" name)"
   description="$(extract_md_frontmatter_field "$src" description)"
+
+  # Rewrite cross-doc links before extracting body so the TOML payload (which
+  # becomes Claude/Codex system prompt) ends up with sync-aware paths.
+  rewritten="$TMP_DIR/$(basename "$src" .md).codex-src.md"
+  rewrite_agent_doc_links "$src" "$rewritten"
+  src="$rewritten"
 
   if [ -z "$agent_name" ]; then
     echo "skip: $src has no frontmatter name; cannot generate Codex TOML." >&2
@@ -890,9 +919,15 @@ write_claude_agent_md() {
   local dest="$2"
   local agent_name
   local generated
+  local rewritten
 
   agent_name="$(basename "$src" .md)"
   generated="$TMP_DIR/${agent_name}.claude.md"
+
+  # Rewrite cross-doc links first so the markdown body that ends up in
+  # .claude/agents/ points at the correct synced locations.
+  rewritten="$TMP_DIR/${agent_name}.claude-src.md"
+  rewrite_agent_doc_links "$src" "$rewritten"
 
   awk -v src_path="agent-docs/agents/${agent_name}.md" '
     BEGIN { fm = 0; injected = 0 }
@@ -907,7 +942,7 @@ write_claude_agent_md() {
       next
     }
     { print }
-  ' "$src" > "$generated"
+  ' "$rewritten" > "$generated"
 
   copy_managed "$generated" "$dest"
 }
