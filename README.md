@@ -199,6 +199,26 @@ target-repo/
 
 ---
 
+## 적용 시나리오 한눈에
+
+target repo 입장에서 자주 쓰는 명령을 상황별로 정리한 표입니다. 각 행의 자세한 설명·옵션은 본문 섹션을 참조하세요.
+
+| 상황 | 명령 | 본문 |
+| --- | --- | --- |
+| 빈 target repo에 **처음 적용** | 한 줄 부트스트랩 (`curl ... -o scripts/sync-agent-config.sh && bash ...`) | [새 target repo 온보딩 > 빠른 설치](#빠른-설치-한-줄-부트스트랩) |
+| 이미 적용된 target에 **변경 가져오기** (일상 sync, 비파괴적) | `pnpm agent:sync` (또는 `bash scripts/sync-agent-config.sh`) | [이후 동기화 방법](#이후-동기화-방법) |
+| 머지 전 작업 브랜치로 **검증/PoC** | `REMOTE_BRANCH=<branch> pnpm agent:sync` | [비-기본 브랜치에서 sync](#3-비-기본-브랜치에서-sync-검증poc-용) |
+| CI/자동화 등 **비대화형** 실행 | `bash scripts/sync-agent-config.sh --yes` (reset에도 추가 가능) | [강제 재설치](#강제-재설치---reset----reset-managed-only) |
+| **managed 산출물만** 깨끗하게 재설치 (seed·커스텀은 보존) | `bash scripts/sync-agent-config.sh --reset-managed-only` | [--reset-managed-only](#--reset-managed-only-managed-산출물만-재설치) |
+| **seed 포함 전체 재시드** (AGENTS.md/CLAUDE.md 등 사용자 작성분도 사라짐) | `bash scripts/sync-agent-config.sh --reset` | [--reset](#--reset-destructive--seed-포함-전체-재시드) |
+| **태그/SHA에 pin**해 운영용으로 도입 | `REF=v0.1.0 ... bash scripts/sync-agent-config.sh` | [변형: 태그 pin / 사내 미러](#변형-태그-pin--사내-미러) |
+| GitHub raw에 직접 못 닿는 **사내 미러** 환경 | `BASE_URL=... REF=... ...` | [변형: 태그 pin / 사내 미러](#변형-태그-pin--사내-미러) |
+| sync 스크립트 자체의 동작이 변경된 직후 (지난 sync 결과가 옛 형태) | `pnpm agent:sync`를 **연달아 두 번** | [self-replace 함정](#self-replace-함정-sync-스크립트-자체가-바뀐-직후) |
+
+> **`--yes`는 reset 옵션 한정 의미가 있습니다.** 일반 sync는 본래 대화형 확인을 요구하지 않으므로 `--yes` 없이도 그대로 실행됩니다. 이 플래그는 `--reset` / `--reset-managed-only`의 `RESET` / `RESET-MANAGED` 타이핑 확인을 건너뛰기 위해 존재합니다. 그래도 working tree clean 검사는 우회되지 않습니다 — 이는 의도된 안전장치입니다.
+
+---
+
 ## 새 target repo 온보딩
 
 ### 빠른 설치 (한 줄 부트스트랩)
@@ -215,7 +235,7 @@ mkdir -p scripts && curl -fsSL https://raw.githubusercontent.com/skaiworldwide/O
 
 위 부트스트랩은 `main`의 최신 raw 파일을 그대로 받는 형태라 **supply-chain 관점에서는 가장 느슨한 옵션**입니다. 운영/배포 단계에서는 아래 두 가지 변형 중 하나를 권장합니다.
 
-**1) 태그 pin (권장: 운영 도입 시)**
+#### 1) 태그 pin (권장: 운영 도입 시)
 
 `/main/` 부분을 특정 릴리스 태그(또는 커밋 SHA)로 고정하면, 원본이 사후에 바뀌어도 부트스트랩 결과가 변하지 않습니다.
 
@@ -230,7 +250,7 @@ REF=v0.1.0 \
 
 `main`은 하네스/개발 단계에서만 사용하고, 신규 target repo 온보딩 시점에는 그 시점의 최신 태그로 pin하는 것을 기본으로 하세요. 첫 sync 이후에는 target repo의 `scripts/sync-agent-config.sh`가 managed로 갱신되므로, 이후 버전 업은 원본 레포에서 새 태그를 끊은 뒤 target에서 일반 sync(`pnpm agent:sync`)를 돌리면 됩니다.
 
-**2) 사내 미러 사용 (네트워크/거버넌스 제약 환경)**
+#### 2) 사내 미러 사용 (네트워크/거버넌스 제약 환경)
 
 GitHub raw에 직접 닿을 수 없거나 사내 미러를 강제해야 하면, base URL만 환경변수로 치환합니다.
 
@@ -246,7 +266,7 @@ REF=v0.1.0 \
 
 미러 경로 패턴(`/-/raw/`, `/raw/`, `/blob/<ref>/...?raw=true` 등)은 호스팅마다 달라지므로 사내 표준에 맞춰 `BASE_URL`만 바꿔 쓰면 됩니다. 미러를 쓸 때도 가능하면 `REF`는 태그/SHA로 pin하세요 — 미러가 자동 미러링이라면 미러 시점 차이로 인한 drift가 생길 수 있습니다.
 
-**3) 비-기본 브랜치에서 sync (검증/PoC 용)**
+#### 3) 비-기본 브랜치에서 sync (검증/PoC 용)
 
 기본은 항상 `main`이지만, 머지 전인 작업 브랜치로 target repo에서 미리 동기화 결과를 확인하고 싶을 때 `REMOTE_BRANCH` 환경변수로 override할 수 있습니다. 부트스트랩 URL과 스크립트 내부 clone branch를 모두 같은 브랜치로 맞추려면 두 군데 다 지정합니다.
 
@@ -286,6 +306,18 @@ git commit -m "chore: sync common agent config"
 ```
 
 일반 sync는 비파괴적입니다 — managed 파일은 덮어쓰지만 seed 파일과 프로젝트별 커스텀 에이전트·스킬은 보존됩니다.
+
+### self-replace 함정 (sync 스크립트 자체가 바뀐 직후)
+
+sync 스크립트(`scripts/sync-agent-config.sh`)는 다른 managed 파일과 마찬가지로 **자기 자신도 sync 대상**입니다. 그래서 upstream에서 sync 스크립트의 **변환 로직 자체가 변경된 직후**의 첫 sync는 다음 순서로 진행됩니다.
+
+1. 옛 스크립트가 시작 → 옛 로직으로 agent/skill 파일들을 생성
+2. 마지막 단계에서 `scripts/sync-agent-config.sh` 자신을 새 버전으로 교체
+3. 종료
+
+즉 **첫 실행 결과는 옛 로직의 산출물**이고, 새 변환은 **다음 sync부터** 효과가 있습니다. upstream의 변경 이력 표나 PR 설명에서 "sync 동작이 바뀌었다"는 안내를 보면 `pnpm agent:sync`를 **연달아 두 번** 실행해 새 로직까지 반영된 결과를 보세요.
+
+증상 예시 — `pnpm agent:sync`를 한 번 돌렸는데 결과 파일이 옛 형태(예: 잘못된 경로의 markdown 링크, 옛 헤더 포맷 등) 그대로면, 두 번째 sync로 해결되는지 먼저 확인합니다. 두 번째 실행에서도 그대로면 upstream 변환 로직에 별도 버그가 있다는 신호입니다.
 
 ---
 
@@ -457,3 +489,74 @@ $ pnpm agent:sync
 ```
 
 `🌐 Global skills installed`은 변경 유무와 관계없이 매번 표시됩니다 — sync 스크립트가 항상 `~/.claude/skills/skai-fe-init`을 최신본으로 덮어쓰기 때문입니다([글로벌 스킬 등록 정책](#글로벌-스킬-등록-정책-global_skill_names) 참고).
+
+---
+
+## sync 적용 검증
+
+처음 적용했거나 큰 변경을 가져온 직후, target repo 측에서 정상 동작을 빠르게 확인하는 절차입니다. 새 에이전트/스킬을 만든 **개발자**가 원본 레포에서 돌리는 [검증 순서](#검증-순서)와 달리, 이 섹션은 **sync를 받는 측**(소비자)의 자가진단용입니다.
+
+### 1) 정적 점검 (파일 시스템)
+
+target repo 루트에서:
+
+```bash
+# (a) 필수 산출물이 모두 생성됐는지
+ls .claude/agents/fe-{analyst,builder,integration,qa}.md
+ls .codex/agents/fe-{analyst,builder,integration,qa}.toml
+ls .claude/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
+ls .agents/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
+ls agent-docs/rules/*.md
+
+# (b) AGENTS.md에 하네스 섹션과 변경 이력 마커가 있는지
+grep -nE "^## 하네스|harness-changelog:upstream:" AGENTS.md
+
+# (c) _workspace/가 .gitignore에 등록됐는지
+grep -E "^/?_workspace/?" .gitignore
+
+# (d) 멱등성 — 한 번 더 sync 돌렸을 때 거의 모두 💤 Unchanged 여야 정상
+pnpm agent:sync 2>&1 | grep -E "Unchanged|Modified|Added|Deleted"
+```
+
+두 번째 sync에서 `✏️ Modified`가 또 잡히면 [self-replace 함정](#self-replace-함정-sync-스크립트-자체가-바뀐-직후)을 의심합니다 — 한 번 더 돌려서 멱등성이 회복되는지 보세요.
+
+### 2) 자연어 dispatch 검증
+
+target repo를 Claude Code 또는 Codex CLI(0.130+)로 열어 다음 발화로 핵심 dispatch를 확인합니다.
+
+| 환경 | 발화 | 기대 동작 |
+| --- | --- | --- |
+| Claude Code | "fe-analyst 서브에이전트로 사용자 카드 컴포넌트 만드는 계획을 세워줘" | `Agent(subagent_type="fe-analyst", ...)` 네이티브 dispatch 트리거, `_workspace/01_analyst_plan.md` 생성 |
+| Claude Code | "사용자 프로필 카드 컴포넌트 만들어줘" (자연어) | `AGENTS.md` 하네스 섹션이 `fe-orchestrator`를 트리거해 Phase 0~4 흐름이 자동 진행 |
+| Claude Code | `/skai-commit`, `/fe-orchestrator` 등 슬래시 입력 | 자동완성 목록에 노출되고 실행 가능 |
+| Codex CLI | "fe-analyst 서브에이전트에 카드 컴포넌트 분석을 위임해줘" | `collab: SpawnAgent` 런타임 도구 트리거, 새 서브에이전트 세션이 시작되어 TOML `developer_instructions`를 시스템 프롬프트로 받음 |
+| Codex CLI | `/skills` | `fe-orchestrator`·`skai-*` 5개 모두 노출 |
+
+> **가장 빠른 한 줄 자가진단:** target repo에서 Claude Code 또는 Codex CLI에 *"사용자 프로필 카드 컴포넌트 만들어줘"* 라고 말했을 때 `_workspace/01_analyst_plan.md`가 자동 생성되면 dispatch와 skill trigger가 모두 정상입니다.
+
+### 3) 특정 upstream 변경 반영 확인
+
+변경 이력 표나 PR 설명에서 "어떤 파일의 무엇이 바뀌었다"는 안내를 봤다면, sync 후 그 부분만 `grep`으로 핀포인트 확인합니다. 예시:
+
+```bash
+# cross-doc 링크가 sync 시 변환되었는지 (sync 스크립트의 rewrite_agent_doc_links)
+grep -n "rules/" .claude/agents/fe-builder.md | grep -v "agent-docs/rules"
+# → 출력이 비어있으면 OK. 옛 ../rules/ 경로가 남으면 NG → self-replace 함정 의심
+
+# 스킬 경로가 디렉토리 패키지 형식인지
+grep -n "skills/fe-orchestrator" .claude/agents/fe-*.md
+# → 모두 ../skills/fe-orchestrator/SKILL.md 로 보이면 OK
+```
+
+옛 형태가 남았다면 [self-replace 함정](#self-replace-함정-sync-스크립트-자체가-바뀐-직후)일 가능성이 높으므로 `pnpm agent:sync`를 한 번 더 돌려 새 변환 로직을 적용한 뒤 동일 명령을 재실행합니다. 두 번째 실행에서도 그대로면 upstream 변환 로직에 별도 버그가 있다는 신호입니다.
+
+### 4) (선택) lint 검증
+
+원본 측 lint를 직접 돌리고 싶다면 OT_M_FE_AGENTS_CONFIG clone 위치에서:
+
+```bash
+bash scripts/lint-agent-frontmatter.sh
+# → "Lint passed." 가 나오면 frontmatter·본문이 모두 정상
+```
+
+sync 스크립트는 매 실행마다 clone 직후 자동으로 같은 lint를 돌리므로, 일반 `pnpm agent:sync` 출력에서 `Lint passed.` 메시지가 보였다면 이미 통과한 상태입니다 — 별도로 실행할 필요는 없습니다.
