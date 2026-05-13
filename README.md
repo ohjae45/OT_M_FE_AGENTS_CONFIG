@@ -132,7 +132,8 @@ target-repo/
 | 도메인 중립 | 에이전트 정의는 프로젝트 도메인에 비의존적으로 작성합니다. 프로젝트별 도메인 지식(용어·API shape·페이지 구조)은 target repo의 `AGENTS.md`에 두고 참조만 합니다. |
 | 새 에이전트 작성 | `agent-docs/templates/agent-template.md`를 복사해서 시작합니다. 이 템플릿은 target repo로 동기화하지 않습니다. 본문에 `'''` 삼중 작은따옴표는 사용하지 않습니다 (Codex TOML 변환이 multi-line literal string을 사용하므로). |
 | 생성 위치 | sync 시 `.claude/agents/<name>.md`(원본 그대로)와 `.codex/agents/<name>.toml`(TOML 변환) 두 곳에 매번 덮어쓰기로 배포됩니다. |
-| 수정 금지 위치 | target repo의 `.claude/agents/`와 `.codex/agents/` 산출물은 직접 수정하지 않습니다. 프로젝트별 차이가 필요하면 `AGENTS.md`에 반영합니다. |
+| 수정 금지 위치 | target repo의 `.claude/agents/`와 `.codex/agents/`에 있는 **upstream에서 sync된 산출물(`fe-*` 등)**은 직접 수정하지 않습니다. 프로젝트별 차이가 필요하면 `AGENTS.md`에 반영합니다. |
+| 커스텀 에이전트 공존 | 프로젝트 고유 에이전트가 필요하면 `.claude/agents/`와 `.codex/agents/`에 직접 `<name>.md`/`<name>.toml`을 추가할 수 있습니다. sync는 **upstream 원본 마커가 박힌 파일만 cleanup 대상**으로 봅니다 (`.claude/agents`는 frontmatter 뒤 `<!-- Generated from agent-docs/agents/... -->` HTML 주석, `.codex/agents`는 TOML 상단 `# Generated from agent-docs/agents/...` 헤더). 마커가 없는 프로젝트 커스텀 파일은 정상 sync에서도, `--reset-managed-only`에서도 보존됩니다. |
 | 환경 범위 | 하네스는 **Claude Code와 Codex CLI 두 환경**에서 동작합니다. Phase 흐름과 파일 핸드오프는 동일하고 dispatch만 다릅니다 — Claude는 `Agent(subagent_type="fe-analyst", ...)` 네이티브 도구, Codex는 자연어 지시("fe-analyst 서브에이전트로 X 실행하라"). Codex의 자연어 dispatch는 conversational이라 Phase 2 fe-builder ↔ fe-integration 병렬화는 더 제한적입니다 — 현재는 양 환경 모두 순차 실행을 표준으로 합니다. |
 | 트리거 | target repo의 `AGENTS.md` "하네스: FE-COMMON" 섹션이 `fe-orchestrator` 스킬을 트리거합니다. (Claude Code는 `@AGENTS.md` import로, Codex CLI는 `AGENTS.md` 자동 로딩으로 같은 본문을 읽습니다.) |
 | 호출 방식 | Claude: `Agent(subagent_type="fe-analyst", ...)` 네이티브 dispatch. Codex: 자연어 지시. `general-purpose`로 띄운 뒤 본문을 읽게 시키는 우회 패턴은 양쪽 모두 사용하지 않습니다. |
@@ -200,22 +201,17 @@ target-repo/
 
 ## 새 target repo 온보딩
 
-### 1. 최초 1회만 수동으로 스크립트를 가져옵니다.
+### 빠른 설치 (한 줄 부트스트랩)
+
+target repo 루트에서 아래 한 줄을 실행하면 sync 스크립트를 받아 바로 실행합니다.
 
 ```bash
-# 1. OT_M_FE_AGENTS_CONFIG를 임시로 클론
-git clone --depth 1 https://github.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG.git /tmp/ot-m-fe-agents-config
-
-# 2. 스크립트를 내 프로젝트에 복사
-mkdir -p scripts
-cp /tmp/ot-m-fe-agents-config/scripts/sync-agent-config.sh scripts/
-chmod +x scripts/sync-agent-config.sh
-
-# 3. 임시 디렉토리 삭제
-rm -rf /tmp/ot-m-fe-agents-config
+mkdir -p scripts && curl -fsSL https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/main/scripts/sync-agent-config.sh -o scripts/sync-agent-config.sh && chmod +x scripts/sync-agent-config.sh && bash scripts/sync-agent-config.sh
 ```
 
-### 2. package.json에 동기화 스크립트를 추가합니다.
+처음 한 번만 받아두면 이후엔 그대로 `bash scripts/sync-agent-config.sh`(또는 아래 `pnpm agent:sync`)로 동기화할 수 있습니다. sync 자체가 `scripts/sync-agent-config.sh`를 managed로 갱신하므로 부트스트랩 스크립트는 첫 실행 이후 자동으로 최신 버전이 됩니다.
+
+### package.json에 스크립트 등록 (선택)
 
 ```json
 {
@@ -225,11 +221,7 @@ rm -rf /tmp/ot-m-fe-agents-config
 }
 ```
 
-### 3. 이후 동기화를 실행합니다.
-
-```bash
-pnpm agent:sync
-```
+이후 동기화는 `pnpm agent:sync`로 실행합니다.
 
 ---
 
@@ -242,6 +234,67 @@ pnpm agent:sync
 git add -A
 git commit -m "chore: sync common agent config"
 ```
+
+일반 sync는 비파괴적입니다 — managed 파일은 덮어쓰지만 seed 파일과 프로젝트별 커스텀 에이전트·스킬은 보존됩니다.
+
+---
+
+## 강제 재설치 (`--reset` / `--reset-managed-only`)
+
+기존 target repo를 **완전히 깨끗한 상태로 다시 깔아야 할 때**(예: 구버전 경로·이름의 잔재 정리, seed 파일까지 강제 재시드) `--reset`을, **seed와 프로젝트 커스텀은 보존한 채 managed 산출물만 다시 깔고 싶을 때** `--reset-managed-only`를 사용합니다. 둘 다 일반 동기화 흐름과 분리된 일회성 옵션이며, 동시에 지정하면 오류가 납니다.
+
+```bash
+bash scripts/sync-agent-config.sh --reset                    # 전체 재시드 (RESET 타이핑)
+bash scripts/sync-agent-config.sh --reset-managed-only       # managed만 재설치 (RESET-MANAGED 타이핑)
+bash scripts/sync-agent-config.sh --reset --yes              # 자동화/CI에서 프롬프트 생략
+bash scripts/sync-agent-config.sh --reset-managed-only --yes # 자동화/CI에서 프롬프트 생략
+bash scripts/sync-agent-config.sh --help                     # 옵션 도움말
+```
+
+### `--reset` (destructive — seed 포함 전체 재시드)
+
+**지우는 경로:**
+
+| 경로 | 비고 |
+| --- | --- |
+| `AGENTS.md` / `CLAUDE.md` | seed라 일반 sync에서 보존되지만 reset 시엔 템플릿으로 재시드 — 프로젝트별로 채운 내용은 사라집니다 |
+| `.gitignore` | seed 재시드. 프로젝트별 ignore 패턴이 있다면 사전 백업 |
+| `.codex/config.toml` | seed 재시드 |
+| `.claude/settings.json` | managed |
+| `agent-docs/` | 디렉토리 통째 |
+| `.claude/agents/` · `.claude/skills/` | 디렉토리 통째 — 사용자가 추가한 커스텀 에이전트·스킬도 함께 삭제 |
+| `.codex/agents/` · `.agents/skills/` | 디렉토리 통째 |
+
+**건드리지 않는 것:** `scripts/sync-agent-config.sh` 자체, `.claude/`·`.codex/`·`.agents/` 디렉토리 본체(위에 나열되지 않은 하위 항목, 예: `.claude/commands/`·`.claude/output-styles/` 등), 소스 코드, 그 외 모든 프로젝트 파일.
+
+### `--reset-managed-only` (managed 산출물만 재설치)
+
+`--reset`은 seed까지 날려서 프로젝트별로 채워둔 AGENTS.md/CLAUDE.md 내용을 잃습니다. 그게 부담스러울 때 — 예를 들어 managed 규칙·에이전트·스킬만 강제로 깨끗하게 재설치하고 싶을 때 — 이 옵션을 사용합니다. **upstream 원본에 존재하는 이름의 managed 산출물만 골라서 삭제**하므로 같은 디렉토리에 있는 프로젝트 커스텀 파일은 살아남습니다.
+
+**지우는 경로 (upstream 기반으로 동적 결정):**
+
+| 경로 | 비고 |
+| --- | --- |
+| `agent-docs/rules/` | managed 디렉토리 통째 |
+| `agent-docs/guides/` | managed 디렉토리 통째 |
+| `agent-docs/harness-changelog.md` | managed 파일 |
+| `.claude/settings.json` | managed 파일 |
+| `.claude/agents/<name>.md` | upstream `agent-docs/agents/<name>.md`에 대응하는 파일만 (예: `fe-analyst.md`·`fe-builder.md` 등). 같은 디렉토리의 프로젝트 커스텀 에이전트는 보존 |
+| `.codex/agents/<name>.toml` | 위와 동일 매칭 규칙. 프로젝트 커스텀 TOML은 보존 |
+| `.claude/skills/<name>/` · `.agents/skills/<name>/` | upstream `agent-docs/skills/<name>.md`에 대응하는 스킬 디렉토리만. 다른 이름의 프로젝트 커스텀 스킬은 보존 |
+
+**건드리지 않는 것:**
+
+- **Seed 파일**: `AGENTS.md`(본체), `CLAUDE.md`, `.gitignore`, `.codex/config.toml` — 프로젝트별로 채워둔 내용 그대로 유지
+- **프로젝트 커스텀 에이전트·스킬**: 이름이 upstream과 다르면 보존 (예: 프로젝트가 추가한 `my-team-helper.md` 또는 `proj-utils/SKILL.md`)
+- `agent-docs/` 안에 프로젝트가 추가한 파일 (rules/, guides/, harness-changelog.md 바깥)
+- `scripts/sync-agent-config.sh` 자체, 그 외 모든 프로젝트 파일
+
+> **언제 어느 쪽을 쓰나:**
+> - **`--reset`**: target repo를 초기 시드 상태로 완전히 되돌리고 싶을 때 (드물게 사용)
+> - **`--reset-managed-only`**: managed 정의가 꼬여서 깨끗하게 재설치하고 싶지만 프로젝트별 AGENTS.md·커스텀 에이전트는 잃고 싶지 않을 때 (대부분의 reset 시나리오는 이쪽이 더 안전)
+
+> **권장 사용 흐름:** reset 직전에 `git status`로 작업 중 변경이 없는지 확인하고, reset 후엔 `git diff`로 변경 폭을 확인합니다. **이후의 정상 sync는 비파괴적이므로 프로젝트별 커스텀이 사라지지 않습니다** — reset은 일회성 정리 용도입니다.
 
 ---
 
