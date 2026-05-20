@@ -100,7 +100,7 @@ target-repo/
 
 | 항목 | 원칙 |
 | --- | --- |
-| 원본 위치 | 스킬 원본은 `agent-docs/skills/*.md`만 수정합니다. (`skai-*` 공통 작업 스킬 + `fe-orchestrator` 파이프라인) |
+| 원본 위치 | 스킬 원본은 `agent-docs/skills/*.md`만 수정합니다. (`skai-*` 공통 작업 스킬 + `fe-orchestrator`) |
 | 이름 규칙 | SKAI 공통 작업 스킬은 `skai-` 접두사, FE 에이전트 팀 오케스트레이터는 `fe-orchestrator`를 사용합니다. |
 | 새 스킬 작성 | `agent-docs/templates/skill-template.md`를 복사해서 시작합니다. 이 템플릿은 target repo로 동기화하지 않습니다. |
 | 생성 위치 | sync 시 `.claude/skills/<skill>/SKILL.md`와 `.agents/skills/<skill>/SKILL.md`를 생성합니다. |
@@ -199,89 +199,41 @@ target-repo/
 
 ---
 
-## 적용 시나리오 한눈에
+## 적용 방법
 
-target repo 입장에서 자주 쓰는 명령을 상황별로 정리한 표입니다. 각 행의 자세한 설명·옵션은 본문 섹션을 참조하세요.
+target repo에 적용하는 절차는 **신규/기존 무관 동일**합니다. sync 스크립트가 내부적으로 자동 분기하므로 사용자가 의식할 필요가 없습니다.
 
-| 상황 | 명령 | 본문 |
-| --- | --- | --- |
-| 빈 target repo에 **처음 적용** | 한 줄 부트스트랩 (`curl ... -o scripts/sync-agent-config.sh && bash ...`) | [새 target repo 온보딩 > 빠른 설치](#빠른-설치-한-줄-부트스트랩) |
-| 이미 적용된 target에 **변경 가져오기** (일상 sync, 비파괴적) | `pnpm agent:sync` (또는 `bash scripts/sync-agent-config.sh`) | [이후 동기화 방법](#이후-동기화-방법) |
-| 머지 전 작업 브랜치로 **검증/PoC** | `REMOTE_BRANCH=<branch> pnpm agent:sync` | [비-기본 브랜치에서 sync](#3-비-기본-브랜치에서-sync-검증poc-용) |
-| CI/자동화 등 **비대화형** 실행 | `bash scripts/sync-agent-config.sh --yes` (reset에도 추가 가능) | [강제 재설치](#강제-재설치---reset----reset-managed-only) |
-| **managed 산출물만** 깨끗하게 재설치 (seed·커스텀은 보존) | `bash scripts/sync-agent-config.sh --reset-managed-only` | [--reset-managed-only](#--reset-managed-only-managed-산출물만-재설치) |
-| **seed 포함 전체 재시드** (AGENTS.md/CLAUDE.md 등 사용자 작성분도 사라짐) | `bash scripts/sync-agent-config.sh --reset` | [--reset](#--reset-destructive--seed-포함-전체-재시드) |
-| **태그/SHA에 pin**해 운영용으로 도입 | `REF=v0.1.0 ... bash scripts/sync-agent-config.sh` | [변형: 태그 pin / 사내 미러](#변형-태그-pin--사내-미러) |
-| GitHub raw에 직접 못 닿는 **사내 미러** 환경 | `BASE_URL=... REF=... ...` | [변형: 태그 pin / 사내 미러](#변형-태그-pin--사내-미러) |
-| sync 스크립트 자체의 동작이 변경된 직후 (지난 sync 결과가 옛 형태) | `pnpm agent:sync`를 **연달아 두 번** | [self-replace 함정](#self-replace-함정-sync-스크립트-자체가-바뀐-직후) |
+### Step 1. 처음 적용 (부트스트랩)
 
-> **`--yes`는 reset 옵션 한정 의미가 있습니다.** 일반 sync는 본래 대화형 확인을 요구하지 않으므로 `--yes` 없이도 그대로 실행됩니다. 이 플래그는 `--reset` / `--reset-managed-only`의 `RESET` / `RESET-MANAGED` 타이핑 확인을 건너뛰기 위해 존재합니다. 그래도 working tree clean 검사는 우회되지 않습니다 — 이는 의도된 안전장치입니다.
-
----
-
-## 새 target repo 온보딩
-
-### 빠른 설치 (한 줄 부트스트랩)
-
-target repo 루트에서 아래 한 줄을 실행하면 sync 스크립트를 받아 바로 실행합니다.
+target repo 루트에서 한 줄:
 
 ```bash
 mkdir -p scripts && curl -fsSL https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/main/scripts/sync-agent-config.sh -o scripts/sync-agent-config.sh && chmod +x scripts/sync-agent-config.sh && bash scripts/sync-agent-config.sh
 ```
 
-처음 한 번만 받아두면 이후엔 그대로 `bash scripts/sync-agent-config.sh`(또는 아래 `pnpm agent:sync`)로 동기화할 수 있습니다. sync 자체가 `scripts/sync-agent-config.sh`를 managed로 갱신하므로 부트스트랩 스크립트는 첫 실행 이후 자동으로 최신 버전이 됩니다.
+이 명령은 sync 스크립트를 `scripts/sync-agent-config.sh`로 다운로드하고 한 번 실행합니다. **빈 repo든 코드가 있는 repo든 그대로 사용**합니다.
 
-#### 변형: 태그 pin / 사내 미러
+자동 분기 동작:
 
-위 부트스트랩은 `main`의 최신 raw 파일을 그대로 받는 형태라 **supply-chain 관점에서는 가장 느슨한 옵션**입니다. 운영/배포 단계에서는 아래 두 가지 변형 중 하나를 권장합니다.
+| 파일 | 빈 repo (신규) | 이미 코드 있는 repo (기존) |
+| --- | --- | --- |
+| `AGENTS.md` | 템플릿 생성 | 본체 보존 + `## 하네스` 섹션이 없으면 끝에 append + 변경 이력 표 동기화 |
+| `CLAUDE.md` | 생성 | 있으면 보존, 없으면 생성 |
+| `.gitignore` | 시드 생성 | 기존 유지 + `_workspace/`·`_workspace_prev/` 두 엔트리만 backfill |
+| `.codex/config.toml` | 시드 생성 | 보존 |
+| `agent-docs/*`, `.claude/{agents,skills}`, `.codex/agents`, `.agents/skills`, `scripts/sync-agent-config.sh` | 모두 생성 | **항상 최신으로 덮어쓰기** (managed) |
 
-#### 1) 태그 pin (권장: 운영 도입 시)
+자세한 정책은 [동기화 정책](#동기화-정책) 참고.
 
-`/main/` 부분을 특정 릴리스 태그(또는 커밋 SHA)로 고정하면, 원본이 사후에 바뀌어도 부트스트랩 결과가 변하지 않습니다.
+### Step 2. 이후 반복 sync
 
-```bash
-# 예: v0.1.0 태그로 고정 (REF에 태그명 또는 커밋 SHA)
-REF=v0.1.0 \
-  && mkdir -p scripts \
-  && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REF}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
-  && chmod +x scripts/sync-agent-config.sh \
-  && bash scripts/sync-agent-config.sh
-```
-
-`main`은 하네스/개발 단계에서만 사용하고, 신규 target repo 온보딩 시점에는 그 시점의 최신 태그로 pin하는 것을 기본으로 하세요. 첫 sync 이후에는 target repo의 `scripts/sync-agent-config.sh`가 managed로 갱신되므로, 이후 버전 업은 원본 레포에서 새 태그를 끊은 뒤 target에서 일반 sync(`pnpm agent:sync`)를 돌리면 됩니다.
-
-#### 2) 사내 미러 사용 (네트워크/거버넌스 제약 환경)
-
-GitHub raw에 직접 닿을 수 없거나 사내 미러를 강제해야 하면, base URL만 환경변수로 치환합니다.
+부트스트랩 이후엔 로컬 스크립트만 다시 실행하면 됩니다:
 
 ```bash
-# 예: 사내 GitLab/Gitea/Artifactory raw 미러
-BASE_URL="https://git.internal.example.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/-/raw" \
-REF=v0.1.0 \
-  && mkdir -p scripts \
-  && curl -fsSL "${BASE_URL}/${REF}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
-  && chmod +x scripts/sync-agent-config.sh \
-  && bash scripts/sync-agent-config.sh
+bash scripts/sync-agent-config.sh
 ```
 
-미러 경로 패턴(`/-/raw/`, `/raw/`, `/blob/<ref>/...?raw=true` 등)은 호스팅마다 달라지므로 사내 표준에 맞춰 `BASE_URL`만 바꿔 쓰면 됩니다. 미러를 쓸 때도 가능하면 `REF`는 태그/SHA로 pin하세요 — 미러가 자동 미러링이라면 미러 시점 차이로 인한 drift가 생길 수 있습니다.
-
-#### 3) 비-기본 브랜치에서 sync (검증/PoC 용)
-
-기본은 항상 `main`이지만, 머지 전인 작업 브랜치로 target repo에서 미리 동기화 결과를 확인하고 싶을 때 `REMOTE_BRANCH` 환경변수로 override할 수 있습니다. 부트스트랩 URL과 스크립트 내부 clone branch를 모두 같은 브랜치로 맞추려면 두 군데 다 지정합니다.
-
-```bash
-# 예: harness 브랜치로 부트스트랩 + sync
-REMOTE_BRANCH=harness \
-  && mkdir -p scripts \
-  && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REMOTE_BRANCH}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
-  && chmod +x scripts/sync-agent-config.sh \
-  && REMOTE_BRANCH="${REMOTE_BRANCH}" bash scripts/sync-agent-config.sh
-```
-
-이후 재sync도 `REMOTE_BRANCH=harness pnpm agent:sync` 형태로 같은 브랜치를 유지합니다. 머지 후엔 환경변수를 빼면 자동으로 `main`으로 돌아갑니다. 운영 적용에는 사용하지 말고, **작업 브랜치 검증 또는 PoC 용도**로만 쓰세요.
-
-### package.json에 스크립트 등록 (선택)
+`package.json`에 alias를 등록하면 더 짧게 호출 가능 (선택):
 
 ```json
 {
@@ -291,272 +243,139 @@ REMOTE_BRANCH=harness \
 }
 ```
 
-이후 동기화는 `pnpm agent:sync`로 실행합니다.
-
----
-
-## 이후 동기화 방법
-
-OT_M_FE_AGENTS_CONFIG에 변경이 생기면 각 target repo에서 아래를 실행합니다.
-
 ```bash
 pnpm agent:sync
-git add -A
-git commit -m "chore: sync common agent config"
 ```
+
+> **curl 한 줄 vs `pnpm agent:sync` 차이:** curl 한 줄은 스크립트를 *가져오면서* 실행하므로 빈 repo에서도 동작합니다. `pnpm agent:sync`(= `bash scripts/sync-agent-config.sh`)는 *로컬에 이미 있는* 스크립트를 실행하므로 부트스트랩 이후에만 동작합니다. 결과는 동일합니다.
 
 일반 sync는 비파괴적입니다 — managed 파일은 덮어쓰지만 seed 파일과 프로젝트별 커스텀 에이전트·스킬은 보존됩니다.
 
-### self-replace 함정 (sync 스크립트 자체가 바뀐 직후)
+### Step 3. 검증
 
-sync 스크립트(`scripts/sync-agent-config.sh`)는 다른 managed 파일과 마찬가지로 **자기 자신도 sync 대상**입니다. 그래서 upstream에서 sync 스크립트의 **변환 로직 자체가 변경된 직후**의 첫 sync는 다음 순서로 진행됩니다.
-
-1. 옛 스크립트가 시작 → 옛 로직으로 agent/skill 파일들을 생성
-2. 마지막 단계에서 `scripts/sync-agent-config.sh` 자신을 새 버전으로 교체
-3. 종료
-
-즉 **첫 실행 결과는 옛 로직의 산출물**이고, 새 변환은 **다음 sync부터** 효과가 있습니다. upstream의 변경 이력 표나 PR 설명에서 "sync 동작이 바뀌었다"는 안내를 보면 `pnpm agent:sync`를 **연달아 두 번** 실행해 새 로직까지 반영된 결과를 보세요.
-
-증상 예시 — `pnpm agent:sync`를 한 번 돌렸는데 결과 파일이 옛 형태(예: 잘못된 경로의 markdown 링크, 옛 헤더 포맷 등) 그대로면, 두 번째 sync로 해결되는지 먼저 확인합니다. 두 번째 실행에서도 그대로면 upstream 변환 로직에 별도 버그가 있다는 신호입니다.
-
----
-
-## 강제 재설치 (`--reset` / `--reset-managed-only`)
-
-기존 target repo를 **완전히 깨끗한 상태로 다시 깔아야 할 때**(예: 구버전 경로·이름의 잔재 정리, seed 파일까지 강제 재시드) `--reset`을, **seed와 프로젝트 커스텀은 보존한 채 managed 산출물만 다시 깔고 싶을 때** `--reset-managed-only`를 사용합니다. 둘 다 일반 동기화 흐름과 분리된 일회성 옵션이며, 동시에 지정하면 오류가 납니다.
-
-```bash
-bash scripts/sync-agent-config.sh --reset                    # 전체 재시드 (RESET 타이핑)
-bash scripts/sync-agent-config.sh --reset-managed-only       # managed만 재설치 (RESET-MANAGED 타이핑)
-bash scripts/sync-agent-config.sh --reset --yes              # 자동화/CI에서 프롬프트 생략
-bash scripts/sync-agent-config.sh --reset-managed-only --yes # 자동화/CI에서 프롬프트 생략
-bash scripts/sync-agent-config.sh --help                     # 옵션 도움말
-```
-
-### `--reset` (destructive — seed 포함 전체 재시드)
-
-**지우는 경로:**
-
-| 경로 | 비고 |
-| --- | --- |
-| `AGENTS.md` / `CLAUDE.md` | seed라 일반 sync에서 보존되지만 reset 시엔 템플릿으로 재시드 — 프로젝트별로 채운 내용은 사라집니다 |
-| `.gitignore` | seed 재시드. 프로젝트별 ignore 패턴이 있다면 사전 백업 |
-| `.codex/config.toml` | seed 재시드 |
-| `.claude/settings.json` | managed |
-| `agent-docs/` | 디렉토리 통째 |
-| `.claude/agents/` · `.claude/skills/` | 디렉토리 통째 — 사용자가 추가한 커스텀 에이전트·스킬도 함께 삭제 |
-| `.codex/agents/` · `.agents/skills/` | 디렉토리 통째 |
-
-**건드리지 않는 것:** `scripts/sync-agent-config.sh` 자체, `.claude/`·`.codex/`·`.agents/` 디렉토리 본체(위에 나열되지 않은 하위 항목, 예: `.claude/commands/`·`.claude/output-styles/` 등), 소스 코드, 그 외 모든 프로젝트 파일.
-
-### `--reset-managed-only` (managed 산출물만 재설치)
-
-`--reset`은 seed까지 날려서 프로젝트별로 채워둔 AGENTS.md/CLAUDE.md 내용을 잃습니다. 그게 부담스러울 때 — 예를 들어 managed 규칙·에이전트·스킬만 강제로 깨끗하게 재설치하고 싶을 때 — 이 옵션을 사용합니다. **upstream 원본에 존재하는 이름의 managed 산출물만 골라서 삭제**하므로 같은 디렉토리에 있는 프로젝트 커스텀 파일은 살아남습니다.
-
-**지우는 경로 (upstream 기반으로 동적 결정):**
-
-| 경로 | 비고 |
-| --- | --- |
-| `agent-docs/rules/` | managed 디렉토리 통째 |
-| `agent-docs/guides/` | managed 디렉토리 통째 |
-| `agent-docs/harness-changelog.md` | managed 파일 |
-| `.claude/settings.json` | managed 파일 |
-| `.claude/agents/<name>.md` | upstream `agent-docs/agents/<name>.md`에 대응하는 파일만 (예: `fe-analyst.md`·`fe-builder.md` 등). 같은 디렉토리의 프로젝트 커스텀 에이전트는 보존 |
-| `.codex/agents/<name>.toml` | 위와 동일 매칭 규칙. 프로젝트 커스텀 TOML은 보존 |
-| `.claude/skills/<name>/` · `.agents/skills/<name>/` | upstream `agent-docs/skills/<name>.md`에 대응하는 스킬 디렉토리만. 다른 이름의 프로젝트 커스텀 스킬은 보존 |
-
-**건드리지 않는 것:**
-
-- **Seed 파일**: `AGENTS.md`(본체), `CLAUDE.md`, `.gitignore`, `.codex/config.toml` — 프로젝트별로 채워둔 내용 그대로 유지
-- **프로젝트 커스텀 에이전트·스킬**: 이름이 upstream과 다르면 보존 (예: 프로젝트가 추가한 `my-team-helper.md` 또는 `proj-utils/SKILL.md`)
-- `agent-docs/` 안에 프로젝트가 추가한 파일 (rules/, guides/, harness-changelog.md 바깥)
-- `scripts/sync-agent-config.sh` 자체, 그 외 모든 프로젝트 파일
-
-> **언제 어느 쪽을 쓰나:**
-> - **`--reset`**: target repo를 초기 시드 상태로 완전히 되돌리고 싶을 때 (드물게 사용)
-> - **`--reset-managed-only`**: managed 정의가 꼬여서 깨끗하게 재설치하고 싶지만 프로젝트별 AGENTS.md·커스텀 에이전트는 잃고 싶지 않을 때 (대부분의 reset 시나리오는 이쪽이 더 안전)
-> - **마이그레이션 (marker 도입 이전부터 sync 받던 target repo)**: Claude agent marker는 `5616d90`(2026-05-13)에 도입됐습니다. 그 이전에 sync한 target repo는 옛 managed 사본에 marker가 없어 cleanup 대상에서 빠지므로(fail-safe), marker 도입 후 **첫 sync 직후 한 번** `--reset-managed-only`를 실행해 옛 사본을 정리하는 것을 권장합니다. 이후 정상 sync는 marker 기반으로 정확히 cleanup됩니다.
-
-> **권장 사용 흐름:** reset 직전에 `git status`로 작업 중 변경이 없는지 확인하고, reset 후엔 `git diff`로 변경 폭을 확인합니다. **이후의 정상 sync는 비파괴적이므로 프로젝트별 커스텀이 사라지지 않습니다** — reset은 일회성 정리 용도입니다.
-
----
-
-## sync 결과 예시
-
-빈 git 디렉토리에서 처음 `pnpm agent:sync`를 실행했을 때의 콘솔 출력과 생성되는 파일 구조 예시입니다. 두 번째 실행부터는 변경된 파일만 `✏️ Modified`로 나타나고, 나머지는 `💤 Unchanged`로 분류되어 멱등하게 동작합니다.
-
-### 첫 실행 (빈 target repo)
-
-```text
-$ pnpm agent:sync
-Cloning OT_M_FE_AGENTS_CONFIG (--depth 1)...
-Linting upstream agent/skill sources...
-=== Linting agent and skill frontmatter ===
-  files checked: 11
-  errors:        0
-  warnings:      0
-Lint passed.
-
-=== Sync Complete ===
-
-✅  Added
-    - AGENTS.md
-    - CLAUDE.md
-    - .gitignore
-    - .codex/config.toml
-    - agent-docs/rules/{api,frontend-common,git-keyword,state-management,styling,typescript,workflow}-rules.md
-    - agent-docs/guides/agents-md-writing.md
-    - agent-docs/harness-changelog.md
-    - .claude/agents/fe-{analyst,builder,integration,qa}.md
-    - .codex/agents/fe-{analyst,builder,integration,qa}.toml
-    - .claude/settings.json
-    - scripts/sync-agent-config.sh
-    - .claude/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
-    - .agents/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
-
-🌐  Global skills installed
-    - skai-fe-init → ~/.claude/skills/skai-fe-init
-
-Review changes with 'git diff', then commit and open a PR manually.
-```
-
-### 결과 파일 트리
-
-```text
-target-repo/
-├── AGENTS.md                                # seed (덮어쓰지 않음)
-├── CLAUDE.md                                # seed
-├── .gitignore                               # seed + _workspace/ backfill
-├── agent-docs/
-│   ├── guides/agents-md-writing.md          # managed
-│   ├── harness-changelog.md                 # managed (변경 이력 표 단일 원본)
-│   └── rules/                               # managed (7개 규칙 문서)
-│       ├── api-rules.md
-│       ├── frontend-common-rules.md
-│       ├── git-keyword-rules.md
-│       ├── state-management-rules.md
-│       ├── styling-rules.md
-│       ├── typescript-rules.md
-│       └── workflow-rules.md
-├── .claude/
-│   ├── settings.json                        # managed
-│   ├── agents/                              # managed (Claude 네이티브 dispatch)
-│   │   ├── fe-analyst.md
-│   │   ├── fe-builder.md
-│   │   ├── fe-integration.md
-│   │   └── fe-qa.md
-│   └── skills/                              # managed/generated
-│       ├── fe-orchestrator/SKILL.md
-│       ├── skai-commit/SKILL.md
-│       ├── skai-convention-review/SKILL.md
-│       ├── skai-fe-init/SKILL.md
-│       └── skai-pr/SKILL.md
-├── .codex/
-│   ├── config.toml                          # seed (비어있는 override 템플릿)
-│   └── agents/                              # managed/generated (TOML, Codex 자연어 dispatch)
-│       ├── fe-analyst.toml
-│       ├── fe-builder.toml
-│       ├── fe-integration.toml
-│       └── fe-qa.toml
-├── .agents/
-│   └── skills/                              # managed/generated (Codex 표준 스캔 경로)
-│       ├── fe-orchestrator/SKILL.md
-│       ├── skai-commit/SKILL.md
-│       ├── skai-convention-review/SKILL.md
-│       ├── skai-fe-init/SKILL.md
-│       └── skai-pr/SKILL.md
-└── scripts/
-    └── sync-agent-config.sh                 # managed (자기 자신을 갱신)
-```
-
-### 두 번째 실행 (멱등)
-
-원본이 변경되지 않았다면 모든 managed 파일이 `💤 Unchanged`로 분류되고, seed 파일은 그대로 `⏭️ Seed skipped`로 표시됩니다. 원본에 변경이 생긴 항목만 `✏️ Modified`(내용 차이) 또는 `❌ Deleted`(원본 삭제로 인한 정리)로 보입니다.
-
-```text
-$ pnpm agent:sync
-...
-💤  Unchanged
-    - agent-docs/rules/...
-    - .claude/agents/fe-{analyst,builder,integration,qa}.md
-    - .codex/agents/fe-{analyst,builder,integration,qa}.toml
-    - .claude/skills/.../SKILL.md
-    - .agents/skills/.../SKILL.md
-    ...
-
-🌐  Global skills installed
-    - skai-fe-init → ~/.claude/skills/skai-fe-init
-```
-
-`🌐 Global skills installed`은 변경 유무와 관계없이 매번 표시됩니다 — sync 스크립트가 항상 `~/.claude/skills/skai-fe-init`을 최신본으로 덮어쓰기 때문입니다([글로벌 스킬 등록 정책](#글로벌-스킬-등록-정책-global_skill_names) 참고).
-
----
-
-## sync 적용 검증
-
-처음 적용했거나 큰 변경을 가져온 직후, target repo 측에서 정상 동작을 빠르게 확인하는 절차입니다. 새 에이전트/스킬을 만든 **개발자**가 원본 레포에서 돌리는 [검증 순서](#검증-순서)와 달리, 이 섹션은 **sync를 받는 측**(소비자)의 자가진단용입니다.
-
-### 1) 정적 점검 (파일 시스템)
+#### 3-1. 정적 검증 (파일 존재)
 
 target repo 루트에서:
 
 ```bash
-# (a) 필수 산출물이 모두 생성됐는지
 ls .claude/agents/fe-{analyst,builder,integration,qa}.md
-ls .codex/agents/fe-{analyst,builder,integration,qa}.toml
 ls .claude/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
-ls .agents/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
-ls agent-docs/rules/*.md
-
-# (b) AGENTS.md에 하네스 섹션과 변경 이력 마커가 있는지
+ls .codex/agents/fe-*.toml
+ls .agents/skills/*/SKILL.md
 grep -nE "^## 하네스|harness-changelog:upstream:" AGENTS.md
-
-# (c) _workspace/가 .gitignore에 등록됐는지
 grep -E "^/?_workspace/?" .gitignore
-
-# (d) 멱등성 — 한 번 더 sync 돌렸을 때 거의 모두 💤 Unchanged 여야 정상
-pnpm agent:sync 2>&1 | grep -E "Unchanged|Modified|Added|Deleted"
 ```
 
-두 번째 sync에서 `✏️ Modified`가 또 잡히면 [self-replace 함정](#self-replace-함정-sync-스크립트-자체가-바뀐-직후)을 의심합니다 — 한 번 더 돌려서 멱등성이 회복되는지 보세요.
+모든 줄이 출력을 가져야 통과합니다. 비는 줄이 있으면 그 단계가 막힌 신호입니다.
 
-### 2) 자연어 dispatch 검증
+#### 3-2. 멱등성 검증
 
-target repo를 Claude Code 또는 Codex CLI(0.130+)로 열어 다음 발화로 핵심 dispatch를 확인합니다.
+```bash
+pnpm agent:sync 2>&1 | grep -E "Added|Modified|Deleted"
+```
 
-| 환경 | 발화 | 기대 동작 |
+두 번째 sync에서 거의 비어 있어야 정상입니다. `Modified`가 또 잡히면 [self-replace 함정](#self-replace-함정) — 한 번 더 돌리면 회복됩니다.
+
+#### 3-3. 연결 테스트 (가장 빠른 자가진단)
+
+Claude Code에서 target repo를 열고 입력합니다:
+
+> "사용자 프로필 카드 컴포넌트 만들어줘"
+
+`_workspace/01_analyst_plan.md`가 자동 생성되면 **dispatch + skill trigger + 에이전트 정의 + AGENTS.md 하네스 섹션이 모두 정상**입니다.
+
+생성되지 않으면 진단 순서:
+
+1. `/agents` 자동완성에 `fe-analyst`·`fe-builder`·`fe-integration`·`fe-qa` 노출 → 안 보이면 `.claude/agents/` 누락
+2. `/skills`에 `fe-orchestrator` 노출 → 안 보이면 `.claude/skills/fe-orchestrator/SKILL.md` 누락
+3. `AGENTS.md`에 `## 하네스: FE-COMMON` 섹션 존재 → 없으면 sync 한 번 더 (backfill)
+4. `CLAUDE.md`에 `@AGENTS.md` import 라인 존재
+
+Codex CLI(0.130+)라면 동일 입력 + `/skills`에서 5개 노출 확인.
+
+---
+
+## 고급 옵션
+
+운영 도입·예외 상황에서만 사용하는 옵션입니다. 일반 적용에는 위 [적용 방법](#적용-방법) 한 흐름이면 충분합니다.
+
+### 태그 pin (운영 도입 시 권장)
+
+`main` 대신 릴리스 태그(또는 커밋 SHA)로 고정하면 원본이 사후에 바뀌어도 부트스트랩 결과가 변하지 않습니다.
+
+```bash
+REF=v0.1.0 \
+  && mkdir -p scripts \
+  && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REF}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
+  && chmod +x scripts/sync-agent-config.sh \
+  && bash scripts/sync-agent-config.sh
+```
+
+`main`은 하네스/개발 단계에서만 사용하고, 신규 target repo 온보딩 시점에는 그 시점의 최신 태그로 pin하는 것을 기본으로 하세요. 첫 sync 이후 target repo의 `scripts/sync-agent-config.sh`가 managed로 갱신되므로, 이후 버전 업은 원본 레포에서 새 태그를 끊은 뒤 target에서 일반 sync(`pnpm agent:sync`)를 돌리면 됩니다.
+
+### 사내 미러 (네트워크 제약 환경)
+
+GitHub raw에 직접 닿을 수 없는 환경에서는 `BASE_URL`만 사내 미러로 치환합니다.
+
+```bash
+BASE_URL="https://git.internal.example.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/-/raw" \
+REF=v0.1.0 \
+  && mkdir -p scripts \
+  && curl -fsSL "${BASE_URL}/${REF}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
+  && chmod +x scripts/sync-agent-config.sh \
+  && bash scripts/sync-agent-config.sh
+```
+
+미러 경로 패턴(`/-/raw/`, `/raw/`, `/blob/<ref>/...?raw=true` 등)은 호스팅마다 달라지므로 사내 표준에 맞춰 `BASE_URL`만 바꿔 씁니다. 미러를 쓸 때도 가능하면 `REF`는 태그/SHA로 pin하세요.
+
+### 작업 브랜치 검증 (PoC 용)
+
+머지 전 작업 브랜치로 미리 결과를 확인할 때 `REMOTE_BRANCH` 환경변수로 override합니다.
+
+```bash
+# 부트스트랩 + sync 모두 같은 브랜치로
+REMOTE_BRANCH=harness \
+  && mkdir -p scripts \
+  && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REMOTE_BRANCH}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
+  && chmod +x scripts/sync-agent-config.sh \
+  && REMOTE_BRANCH="${REMOTE_BRANCH}" bash scripts/sync-agent-config.sh
+
+# 부트스트랩 이후 반복 sync
+REMOTE_BRANCH=harness pnpm agent:sync
+```
+
+머지 후엔 환경변수를 빼면 자동으로 `main`으로 돌아갑니다. **운영엔 사용하지 말고 검증·PoC 용도로만** 씁니다.
+
+### `--reset` / `--reset-managed-only` (강제 재설치)
+
+managed 정의가 꼬여서 깨끗하게 재설치할 때만 사용합니다. 일반 동기화 흐름과 분리된 일회성 옵션이며, 동시에 지정하면 오류가 납니다.
+
+```bash
+bash scripts/sync-agent-config.sh --reset-managed-only    # managed만 재설치 (권장)
+bash scripts/sync-agent-config.sh --reset                  # seed 포함 전체 재시드 (destructive)
+bash scripts/sync-agent-config.sh --reset --yes            # CI/자동화에서 프롬프트 생략
+bash scripts/sync-agent-config.sh --help                   # 옵션 도움말
+```
+
+| 옵션 | 삭제 대상 | 보존 |
 | --- | --- | --- |
-| Claude Code | "fe-analyst 서브에이전트로 사용자 카드 컴포넌트 만드는 계획을 세워줘" | `Agent(subagent_type="fe-analyst", ...)` 네이티브 dispatch 트리거, `_workspace/01_analyst_plan.md` 생성 |
-| Claude Code | "사용자 프로필 카드 컴포넌트 만들어줘" (자연어) | `AGENTS.md` 하네스 섹션이 `fe-orchestrator`를 트리거해 Phase 0~4 흐름이 자동 진행 |
-| Claude Code | `/skai-commit`, `/fe-orchestrator` 등 슬래시 입력 | 자동완성 목록에 노출되고 실행 가능 |
-| Codex CLI | "fe-analyst 서브에이전트에 카드 컴포넌트 분석을 위임해줘" | `collab: SpawnAgent` 런타임 도구 트리거, 새 서브에이전트 세션이 시작되어 TOML `developer_instructions`를 시스템 프롬프트로 받음 |
-| Codex CLI | `/skills` | `fe-orchestrator`·`skai-*` 5개 모두 노출 |
+| `--reset-managed-only` | upstream에 존재하는 이름의 managed 산출물만 (`agent-docs/rules`·`guides`·`harness-changelog.md`, `.claude/settings.json`, upstream과 같은 이름의 `.claude/agents/*.md`·`.codex/agents/*.toml`·`.claude/skills/<name>/`·`.agents/skills/<name>/`) | seed 파일(AGENTS.md·CLAUDE.md·.gitignore·.codex/config.toml), 프로젝트 커스텀 에이전트·스킬 |
+| `--reset` | 위 + seed 파일 + `.claude/agents/`·`.claude/skills/`·`.codex/agents/`·`.agents/skills/` 디렉토리 통째 | `scripts/sync-agent-config.sh` 본인, 소스 코드, 나열되지 않은 모든 프로젝트 파일 |
 
-> **가장 빠른 한 줄 자가진단:** target repo에서 Claude Code 또는 Codex CLI에 *"사용자 프로필 카드 컴포넌트 만들어줘"* 라고 말했을 때 `_workspace/01_analyst_plan.md`가 자동 생성되면 dispatch와 skill trigger가 모두 정상입니다.
+> **대부분의 reset 시나리오는 `--reset-managed-only`가 안전합니다.** `--reset`은 target repo를 초기 시드 상태로 완전히 되돌리고 싶을 때만 사용하세요 — 프로젝트별로 채워둔 AGENTS.md 내용도 함께 사라집니다.
 
-### 3) 특정 upstream 변경 반영 확인
+> **Marker 도입 이전(2026-05-13 이전)에 sync한 target repo**는 옛 managed 사본에 marker가 없어 cleanup 대상에서 빠집니다. marker 도입 후 **첫 sync 직후 한 번** `--reset-managed-only`를 실행해 옛 사본을 정리하세요. 이후 정상 sync는 marker 기반으로 정확히 cleanup됩니다.
 
-변경 이력 표나 PR 설명에서 "어떤 파일의 무엇이 바뀌었다"는 안내를 봤다면, sync 후 그 부분만 `grep`으로 핀포인트 확인합니다. 예시:
+> reset 직전에 `git status`로 작업 중 변경이 없는지 확인하고, reset 후엔 `git diff`로 변경 폭을 확인합니다. `--yes`는 reset의 확인 프롬프트(`RESET`/`RESET-MANAGED` 타이핑)만 생략할 뿐, working tree clean 검사는 우회되지 않습니다.
 
-```bash
-# cross-doc 링크가 sync 시 변환되었는지 (sync 스크립트의 rewrite_agent_doc_links)
-grep -n "rules/" .claude/agents/fe-builder.md | grep -v "agent-docs/rules"
-# → 출력이 비어있으면 OK. 옛 ../rules/ 경로가 남으면 NG → self-replace 함정 의심
+### self-replace 함정
 
-# 스킬 경로가 디렉토리 패키지 형식인지
-grep -n "skills/fe-orchestrator" .claude/agents/fe-*.md
-# → 모두 ../skills/fe-orchestrator/SKILL.md 로 보이면 OK
-```
+sync 스크립트(`scripts/sync-agent-config.sh`)는 다른 managed 파일과 마찬가지로 **자기 자신도 sync 대상**입니다. upstream에서 sync 스크립트의 **변환 로직이 바뀐 직후**의 첫 sync는 다음 순서로 진행됩니다.
 
-옛 형태가 남았다면 [self-replace 함정](#self-replace-함정-sync-스크립트-자체가-바뀐-직후)일 가능성이 높으므로 `pnpm agent:sync`를 한 번 더 돌려 새 변환 로직을 적용한 뒤 동일 명령을 재실행합니다. 두 번째 실행에서도 그대로면 upstream 변환 로직에 별도 버그가 있다는 신호입니다.
+1. 옛 스크립트가 실행 → 옛 로직으로 파일 생성
+2. 마지막 단계에서 `scripts/sync-agent-config.sh` 자신을 새 버전으로 교체
+3. 종료
 
-### 4) (선택) lint 검증
+즉 **첫 실행 결과는 옛 로직 산출물**이고, 새 변환은 **다음 sync부터** 효과가 있습니다. `pnpm agent:sync`를 **연달아 두 번** 실행하면 새 로직까지 반영된 결과를 얻습니다.
 
-원본 측 lint를 직접 돌리고 싶다면 OT_M_FE_AGENTS_CONFIG clone 위치에서:
-
-```bash
-bash scripts/lint-agent-frontmatter.sh
-# → "Lint passed." 가 나오면 frontmatter·본문이 모두 정상
-```
-
-sync 스크립트는 매 실행마다 clone 직후 자동으로 같은 lint를 돌리므로, 일반 `pnpm agent:sync` 출력에서 `Lint passed.` 메시지가 보였다면 이미 통과한 상태입니다 — 별도로 실행할 필요는 없습니다.
+증상 예시 — 한 번 sync 후 결과 파일이 옛 형태(예: 잘못된 경로의 markdown 링크, 옛 헤더 포맷 등) 그대로면 두 번째 sync로 해결되는지 먼저 확인합니다. 두 번째에도 그대로면 upstream 변환 로직에 별도 버그가 있다는 신호입니다.
