@@ -9,7 +9,7 @@ OT_M_FE_AGENTS_CONFIG/
 ├── agent-docs/
 │   ├── rules/          # 공통 개발 규칙 문서 원본
 │   ├── agents/         # 공통 FE 에이전트 정의 원본 (sync 시 도구별 포맷으로 분기)
-│   ├── skills/         # 공통 스킬 원본 (skai-* + fe-orchestrator)
+│   ├── skills/         # 공통 스킬 원본 (skai-* + skai-orchestrator)
 │   ├── guides/         # 프로젝트 문서 작성 가이드 (AGENTS.md 섹션 채우기 예시 등)
 │   └── templates/      # 에이전트·스킬 작성용 원본 템플릿
 ├── templates/          # 초기 세팅용 템플릿 (seed)
@@ -33,13 +33,13 @@ target-repo/
 ├── .claude/
 │   ├── settings.json       ← .claude/settings.json (managed)
 │   ├── agents/
-│   │   └── fe-*.md         ← agent-docs/agents/fe-*.md (managed)
+│   │   └── skai-*.md         ← agent-docs/agents/skai-*.md (managed)
 │   └── skills/
 │       └── <skill>/SKILL.md ← agent-docs/skills/*.md에서 생성 (managed)
 ├── .codex/
 │   ├── config.toml         ← templates/codex-config.toml (seed)
 │   └── agents/
-│       └── fe-*.toml       ← agent-docs/agents/fe-*.md에서 TOML로 변환 (managed)
+│       └── skai-*.toml       ← agent-docs/agents/skai-*.md에서 TOML로 변환 (managed)
 ├── .agents/
 │   └── skills/
 │       └── <skill>/SKILL.md ← agent-docs/skills/*.md에서 생성 (managed)
@@ -53,15 +53,15 @@ target-repo/
 | --- | --- | --- |
 | `AGENTS.md` | seed + 변경 이력 표 managed | Codex와 Claude가 공통으로 따라야 하는 프로젝트 작업 원칙입니다. 프로젝트별 도메인 지식(용어·API 패턴·페이지 구조)과 하네스 트리거 규칙도 여기에 둡니다. 본체는 이미 있으면 덮어쓰지 않지만, "## 하네스: FE-COMMON" 안의 **변경 이력 표는 `<!-- harness-changelog:upstream:* -->` 마커 안쪽에 한해 sync 시 자동 갱신**됩니다. ([agent-docs/harness-changelog.md](agent-docs/harness-changelog.md) 단일 원본) |
 | `CLAUDE.md` | seed | Claude Code 진입점입니다. `@AGENTS.md` import로 공용 규칙을 가져오고, Claude 네이티브 서브에이전트 dispatch(`Agent(subagent_type=...)`) 디테일만 추가로 안내합니다. 이미 있으면 덮어쓰지 않습니다. |
-| `.gitignore` | seed + backfill | `fe-orchestrator`가 매 실행마다 생성하는 `_workspace/`·`_workspace_prev/`를 자동으로 ignore 처리합니다. 파일이 없으면 `templates/gitignore`를 시드로 복사하고, 이미 있으면 두 엔트리가 누락된 경우에만 파일 끝에 한 번 추가합니다. |
+| `.gitignore` | seed + backfill | `skai-orchestrator`가 매 실행마다 생성하는 `_workspace/`·`_workspace_prev/`를 자동으로 ignore 처리합니다. 파일이 없으면 `templates/gitignore`를 시드로 복사하고, 이미 있으면 두 엔트리가 누락된 경우에만 파일 끝에 한 번 추가합니다. |
 | `agent-docs/rules/` | managed | TypeScript, 스타일링, 상태 관리, 워크플로우 같은 공통 개발 규칙 문서입니다. Claude·Codex 양쪽이 동일하게 참조합니다. |
 | `agent-docs/guides/` | managed | 프로젝트별 문서를 채울 때 참고하는 가이드 모음입니다. 현재는 `AGENTS.md` 빈 섹션을 채우기 위한 두 도메인(채팅 플랫폼·분석 대시보드) 익명화 예시(`agents-md-writing.md`)가 있습니다. |
 | `agent-docs/harness-changelog.md` | managed | AGENTS.md "변경 이력" 표의 단일 원본입니다. 마커(`<!-- harness-changelog:upstream:start -->` / `:end -->`) 안쪽 표가 sync 시 target의 AGENTS.md 마커 블록으로 복제됩니다. 변경 이력 행 추가는 이 파일에서만 합니다. |
 | `.claude/settings.json` | managed | Claude Code에서 사용할 공통 설정입니다. |
-| `.claude/agents/fe-*.md` | managed | Claude Code가 읽는 프론트엔드 에이전트 팀(fe-analyst·fe-builder·fe-integration·fe-qa) 정의입니다. Claude Code는 frontmatter를 스캔해 `subagent_type="fe-analyst"` 같은 네이티브 dispatch로 자동 등록합니다. 도메인 중립이며 프로젝트별 지식은 `AGENTS.md`로 분리합니다. |
-| `.claude/skills/<skill>/SKILL.md` | managed/generated | Claude Code가 인식하는 repo-local 스킬 패키지입니다. `agent-docs/skills/*.md` 원본에 frontmatter를 붙여 생성합니다. (`skai-*` 공통 작업 + `fe-orchestrator`) |
+| `.claude/agents/skai-*.md` | managed | Claude Code가 읽는 프론트엔드 에이전트 팀(skai-analyst·skai-builder·skai-integration·skai-qa) 정의입니다. Claude Code는 frontmatter를 스캔해 `subagent_type="skai-analyst"` 같은 네이티브 dispatch로 자동 등록합니다. 도메인 중립이며 프로젝트별 지식은 `AGENTS.md`로 분리합니다. |
+| `.claude/skills/<skill>/SKILL.md` | managed/generated | Claude Code가 인식하는 repo-local 스킬 패키지입니다. `agent-docs/skills/*.md` 원본에 frontmatter를 붙여 생성합니다. (`skai-*` 공통 작업 + `skai-orchestrator`) |
 | `.codex/config.toml` | seed | Codex CLI 프로젝트 설정입니다. 비워두면 사용자 `~/.codex/config.toml`이 그대로 적용되며, 프로젝트 단위로 model·sandbox_mode·MCP 서버 등을 override할 때 사용합니다. 이미 있으면 덮어쓰지 않습니다. |
-| `.codex/agents/fe-*.toml` | managed/generated | Codex CLI가 읽는 프론트엔드 서브에이전트 정의입니다. `agent-docs/agents/fe-*.md`의 frontmatter `name`/`description`과 본문을 TOML `name`/`description`/`developer_instructions`로 변환해 생성합니다. Codex는 자동 인식하며 자연어 dispatch("fe-analyst 서브에이전트로 X 실행하라")로 호출합니다. |
+| `.codex/agents/skai-*.toml` | managed/generated | Codex CLI가 읽는 프론트엔드 서브에이전트 정의입니다. `agent-docs/agents/skai-*.md`의 frontmatter `name`/`description`과 본문을 TOML `name`/`description`/`developer_instructions`로 변환해 생성합니다. Codex는 자동 인식하며 자연어 dispatch("skai-analyst 서브에이전트로 X 실행하라")로 호출합니다. |
 | `.agents/skills/<skill>/SKILL.md` | managed/generated | Codex가 인식하는 repo-local 스킬 패키지입니다. Claude용 스킬과 같은 원본에서 생성하되 Codex가 읽는 위치(`.agents/skills`)에 둡니다. |
 | `scripts/sync-agent-config.sh` | managed | target repo에서 OT_M_FE_AGENTS_CONFIG를 다시 가져와 공통 규칙 문서, 설정, 에이전트, 스킬을 최신 상태로 맞추는 동기화 스크립트입니다. |
 
@@ -76,9 +76,9 @@ target-repo/
 - `templates/gitignore` → `.gitignore`
 - `templates/codex-config.toml` → `.codex/config.toml`
 
-> **기존 target repo 업그레이드 (AGENTS.md 하네스 섹션):** seed라 덮어쓰지는 않지만, 기존 `AGENTS.md`에 `## 하네스` 섹션이 없으면 sync 시 템플릿의 하네스 섹션을 파일 끝에 자동으로 한 번 append 합니다. 그래야 하네스 도입 이전에 생성된 target repo도 `fe-orchestrator` 트리거 규칙을 받을 수 있습니다. 이미 `## 하네스` 섹션이 있으면 건드리지 않으므로, 프로젝트별로 수정한 내용은 그대로 보존됩니다. CLAUDE.md는 `@AGENTS.md` import로 그 본문을 가져오므로 별도 backfill 대상이 아닙니다.
+> **기존 target repo 업그레이드 (AGENTS.md 하네스 섹션):** seed라 덮어쓰지는 않지만, 기존 `AGENTS.md`에 `## 하네스` 섹션이 없으면 sync 시 템플릿의 하네스 섹션을 파일 끝에 자동으로 한 번 append 합니다. 그래야 하네스 도입 이전에 생성된 target repo도 `skai-orchestrator` 트리거 규칙을 받을 수 있습니다. 이미 `## 하네스` 섹션이 있으면 건드리지 않으므로, 프로젝트별로 수정한 내용은 그대로 보존됩니다. CLAUDE.md는 `@AGENTS.md` import로 그 본문을 가져오므로 별도 backfill 대상이 아닙니다.
 >
-> **`.gitignore` 워크스페이스 backfill:** 기존 `.gitignore`가 있으면 시드를 덮어쓰지 않는 대신, `_workspace/`·`_workspace_prev/` 두 엔트리가 누락된 경우에만 파일 끝에 한 번 추가합니다. `fe-orchestrator`가 매 실행마다 생성하는 런타임 산출물이 target repo에 그대로 커밋되지 않도록 보장하기 위한 정책입니다. 이미 두 엔트리가 (`foo`, `foo/`, `/foo` 등 일반 형태로) 등록돼 있으면 건드리지 않습니다.
+> **`.gitignore` 워크스페이스 backfill:** 기존 `.gitignore`가 있으면 시드를 덮어쓰지 않는 대신, `_workspace/`·`_workspace_prev/` 두 엔트리가 누락된 경우에만 파일 끝에 한 번 추가합니다. `skai-orchestrator`가 매 실행마다 생성하는 런타임 산출물이 target repo에 그대로 커밋되지 않도록 보장하기 위한 정책입니다. 이미 두 엔트리가 (`foo`, `foo/`, `/foo` 등 일반 형태로) 등록돼 있으면 건드리지 않습니다.
 
 ### Managed files
 
@@ -86,8 +86,8 @@ target-repo/
 
 - `agent-docs/rules/*` → `agent-docs/rules/*`
 - `agent-docs/guides/*` → `agent-docs/guides/*`
-- `agent-docs/agents/fe-*.md` → `.claude/agents/fe-*.md` (Claude Code용, .md 그대로)
-- `agent-docs/agents/fe-*.md` → `.codex/agents/fe-*.toml` (Codex CLI용, TOML로 변환)
+- `agent-docs/agents/skai-*.md` → `.claude/agents/skai-*.md` (Claude Code용, .md 그대로)
+- `agent-docs/agents/skai-*.md` → `.codex/agents/skai-*.toml` (Codex CLI용, TOML로 변환)
 - `.claude/settings.json` → `.claude/settings.json`
 - `agent-docs/skills/*.md` → `.claude/skills/<skill>/SKILL.md`
 - `agent-docs/skills/*.md` → `.agents/skills/<skill>/SKILL.md`
@@ -100,8 +100,8 @@ target-repo/
 
 | 항목 | 원칙 |
 | --- | --- |
-| 원본 위치 | 스킬 원본은 `agent-docs/skills/*.md`만 수정합니다. (`skai-*` 공통 작업 스킬 + `fe-orchestrator`) |
-| 이름 규칙 | SKAI 공통 작업 스킬은 `skai-` 접두사, FE 에이전트 팀 오케스트레이터는 `fe-orchestrator`를 사용합니다. |
+| 원본 위치 | 스킬 원본은 `agent-docs/skills/*.md`만 수정합니다. (`skai-*` 공통 작업 스킬 + `skai-orchestrator`) |
+| 이름 규칙 | SKAI 공통 작업 스킬은 `skai-` 접두사, FE 에이전트 팀 오케스트레이터는 `skai-orchestrator`를 사용합니다. |
 | 새 스킬 작성 | `agent-docs/templates/skill-template.md`를 복사해서 시작합니다. 이 템플릿은 target repo로 동기화하지 않습니다. |
 | 생성 위치 | sync 시 `.claude/skills/<skill>/SKILL.md`와 `.agents/skills/<skill>/SKILL.md`를 생성합니다. |
 | 수정 금지 위치 | `.claude/skills`와 `.agents/skills` 아래 generated `SKILL.md`는 직접 수정하지 않습니다. |
@@ -116,7 +116,7 @@ target-repo/
 | 분류 | 글로벌 등록 | 예 |
 | --- | --- | --- |
 | 빈 디렉토리에서 프로젝트를 부트스트랩하는 스킬 | ⭕️ 필요 | `skai-fe-init` — 신규 React/TS 프로젝트 세팅. 아직 `agent:sync`를 돌릴 환경 자체가 없을 때 호출됨 |
-| 이미 부트스트랩된 프로젝트의 작업 흐름 스킬 | ❌ 불필요 | `skai-commit`, `skai-pr`, `skai-convention-review`, `fe-orchestrator` — sync 이후 repo-local만으로 동작 |
+| 이미 부트스트랩된 프로젝트의 작업 흐름 스킬 | ❌ 불필요 | `skai-commit`, `skai-pr`, `skai-convention-review`, `skai-orchestrator` — sync 이후 repo-local만으로 동작 |
 | 사용자 개인 워크플로우용 스킬 | ❌ (이 레포 관리 대상 아님) | 개인 단축어·매크로는 사용자가 직접 `~/.claude/skills/`에 둡니다 |
 
 **현재 등록 항목:** `skai-fe-init` 1개.
@@ -127,23 +127,23 @@ target-repo/
 
 | 항목 | 원칙 |
 | --- | --- |
-| 원본 위치 | FE 에이전트 정의는 `agent-docs/agents/fe-*.md`만 수정합니다. Claude·Codex 모두 이 단일 원본에서 sync 시 분기 생성됩니다. |
+| 원본 위치 | FE 에이전트 정의는 `agent-docs/agents/skai-*.md`만 수정합니다. Claude·Codex 모두 이 단일 원본에서 sync 시 분기 생성됩니다. |
 | Frontmatter | 모든 에이전트 파일은 `name`, `description`, `model` frontmatter를 포함합니다. Claude Code는 이 메타데이터로 `subagent_type="<name>"` 자동 등록을, Codex sync는 같은 `name`·`description`을 TOML 필드로 추출합니다. (`model` 값은 Claude 전용이며 Codex TOML로 옮기지 않습니다 — Codex는 `.codex/config.toml`에서 모델을 설정합니다.) |
 | 도메인 중립 | 에이전트 정의는 프로젝트 도메인에 비의존적으로 작성합니다. 프로젝트별 도메인 지식(용어·API shape·페이지 구조)은 target repo의 `AGENTS.md`에 두고 참조만 합니다. |
 | 새 에이전트 작성 | `agent-docs/templates/agent-template.md`를 복사해서 시작합니다. 이 템플릿은 target repo로 동기화하지 않습니다. 본문에 `'''` 삼중 작은따옴표는 사용하지 않습니다 (Codex TOML 변환이 multi-line literal string을 사용하므로). |
 | 생성 위치 | sync 시 `.claude/agents/<name>.md`(원본 그대로)와 `.codex/agents/<name>.toml`(TOML 변환) 두 곳에 매번 덮어쓰기로 배포됩니다. |
-| 수정 금지 위치 | target repo의 `.claude/agents/`와 `.codex/agents/`에 있는 **upstream에서 sync된 산출물(`fe-*` 등)**은 직접 수정하지 않습니다. 프로젝트별 차이가 필요하면 `AGENTS.md`에 반영합니다. |
+| 수정 금지 위치 | target repo의 `.claude/agents/`와 `.codex/agents/`에 있는 **upstream에서 sync된 산출물(`skai-*` 등)**은 직접 수정하지 않습니다. 프로젝트별 차이가 필요하면 `AGENTS.md`에 반영합니다. |
 | 커스텀 에이전트 공존 | 프로젝트 고유 에이전트가 필요하면 `.claude/agents/`와 `.codex/agents/`에 직접 `<name>.md`/`<name>.toml`을 추가할 수 있습니다. sync는 **upstream 원본 마커가 박힌 파일만 cleanup 대상**으로 봅니다 (`.claude/agents`는 frontmatter 뒤 `<!-- Generated from agent-docs/agents/... -->` HTML 주석, `.codex/agents`는 TOML 상단 `# Generated from agent-docs/agents/...` 헤더). 마커가 없는 프로젝트 커스텀 파일은 정상 sync에서도, `--reset-managed-only`에서도 보존됩니다. |
-| 환경 범위 | 하네스는 **Claude Code와 Codex CLI 두 환경**에서 동작합니다. Phase 흐름과 파일 핸드오프는 동일하고 dispatch만 다릅니다 — Claude는 `Agent(subagent_type="fe-analyst", ...)` 네이티브 도구, Codex는 자연어 지시("fe-analyst 서브에이전트로 X 실행하라"). Codex의 자연어 dispatch는 conversational이라 Phase 2 fe-builder ↔ fe-integration 병렬화는 더 제한적입니다 — 현재는 양 환경 모두 순차 실행을 표준으로 합니다. |
-| 트리거 | target repo의 `AGENTS.md` "하네스: FE-COMMON" 섹션이 `fe-orchestrator` 스킬을 트리거합니다. (Claude Code는 `@AGENTS.md` import로, Codex CLI는 `AGENTS.md` 자동 로딩으로 같은 본문을 읽습니다.) |
-| 호출 방식 | Claude: `Agent(subagent_type="fe-analyst", ...)` 네이티브 dispatch. Codex: 자연어 지시. `general-purpose`로 띄운 뒤 본문을 읽게 시키는 우회 패턴은 양쪽 모두 사용하지 않습니다. |
+| 환경 범위 | 하네스는 **Claude Code와 Codex CLI 두 환경**에서 동작합니다. Phase 흐름과 파일 핸드오프는 동일하고 dispatch만 다릅니다 — Claude는 `Agent(subagent_type="skai-analyst", ...)` 네이티브 도구, Codex는 자연어 지시("skai-analyst 서브에이전트로 X 실행하라"). Codex의 자연어 dispatch는 conversational이라 Phase 2 skai-builder ↔ skai-integration 병렬화는 더 제한적입니다 — 현재는 양 환경 모두 순차 실행을 표준으로 합니다. |
+| 트리거 | target repo의 `AGENTS.md` "하네스: FE-COMMON" 섹션이 `skai-orchestrator` 스킬을 트리거합니다. (Claude Code는 `@AGENTS.md` import로, Codex CLI는 `AGENTS.md` 자동 로딩으로 같은 본문을 읽습니다.) |
+| 호출 방식 | Claude: `Agent(subagent_type="skai-analyst", ...)` 네이티브 dispatch. Codex: 자연어 지시. `general-purpose`로 띄운 뒤 본문을 읽게 시키는 우회 패턴은 양쪽 모두 사용하지 않습니다. |
 
 ### Codex CLI PoC 검증 결과 (2026-05-13)
 
-신규 target repo(빈 git 디렉토리)에 sync를 실행해 `.codex/agents/fe-{analyst,builder,integration,qa}.toml`을 생성한 뒤 Codex CLI에서 직접 확인한 결과:
+신규 target repo(빈 git 디렉토리)에 sync를 실행해 `.codex/agents/skai-{analyst,builder,integration,qa}.toml`을 생성한 뒤 Codex CLI에서 직접 확인한 결과:
 
-- **자동 인식**: Codex CLI 0.130.0이 별도 등록 없이 4개 서브에이전트(`fe-analyst`·`fe-builder`·`fe-integration`·`fe-qa`)를 모두 인식. "사용 가능한 서브에이전트로 등록되어 있는가?" 질문에 **YES**.
-- **자연어 dispatch**: "fe-analyst 서브에이전트에 X 작업을 위임하라" 발화로 Codex의 `collab: SpawnAgent` 런타임 도구가 트리거되고, 해당 서브에이전트가 TOML `developer_instructions`(에이전트 본문)를 시스템 프롬프트로 받아 `_workspace/01_analyst_plan.md`를 직접 작성했다. 즉, 상위 에이전트가 본문을 읽어 흉내내는 게 아니라 실제 sub-agent 컨텍스트가 분리 실행됨을 확인.
+- **자동 인식**: Codex CLI 0.130.0이 별도 등록 없이 4개 서브에이전트(`skai-analyst`·`skai-builder`·`skai-integration`·`skai-qa`)를 모두 인식. "사용 가능한 서브에이전트로 등록되어 있는가?" 질문에 **YES**.
+- **자연어 dispatch**: "skai-analyst 서브에이전트에 X 작업을 위임하라" 발화로 Codex의 `collab: SpawnAgent` 런타임 도구가 트리거되고, 해당 서브에이전트가 TOML `developer_instructions`(에이전트 본문)를 시스템 프롬프트로 받아 `_workspace/01_analyst_plan.md`를 직접 작성했다. 즉, 상위 에이전트가 본문을 읽어 흉내내는 게 아니라 실제 sub-agent 컨텍스트가 분리 실행됨을 확인.
 - **모델 호환성 제약**: Codex CLI 0.122.0의 기본 모델 `gpt-5.5`는 서버에서 "CLI 업그레이드 필요"로 거부됐고, `gpt-5`/`gpt-5.1`/`gpt-5-codex`/`o4-mini`는 ChatGPT 계정에서 미지원. **0.130.0 이상**에서만 PoC가 통과한다. 글로벌 README/온보딩에서 Codex CLI 0.130 이상을 권장 버전으로 명시한다.
 - **관찰된 경고(비차단)**: 첫 SpawnAgent 호출에서 `Full-history forked agents inherit the parent agent type, model, and reasoning effort; omit agent_type, model, and reasoning_effort` 런타임 경고가 한 번 발생했으나 Codex가 자동으로 인자를 줄여 재호출해 성공. TOML 측에서 `model`/`reasoning_effort`를 비워둔 현재 정책이 올바름을 시사한다.
 
@@ -151,19 +151,19 @@ target-repo/
 
 ## 하네스 산출물(`_workspace/`) 구조
 
-`fe-orchestrator`는 매 실행마다 target repo 루트의 `_workspace/`에 Phase별 산출물을 남기고, 다음 실행이 시작될 때 직전 산출물을 `_workspace_prev/`로 회전합니다. 디버깅·부분 재실행·실패 지점 파악 시 어디까지 진행됐는지 추적하는 1차 출처입니다. (두 디렉토리 모두 `.gitignore`에 자동 등록되어 커밋되지 않습니다 — [동기화 정책 > `.gitignore` 워크스페이스 backfill](#managed-files) 참고.)
+`skai-orchestrator`는 매 실행마다 target repo 루트의 `_workspace/`에 Phase별 산출물을 남기고, 다음 실행이 시작될 때 직전 산출물을 `_workspace_prev/`로 회전합니다. 디버깅·부분 재실행·실패 지점 파악 시 어디까지 진행됐는지 추적하는 1차 출처입니다. (두 디렉토리 모두 `.gitignore`에 자동 등록되어 커밋되지 않습니다 — [동기화 정책 > `.gitignore` 워크스페이스 backfill](#managed-files) 참고.)
 
 | 파일 | 작성 주체 | 내용 |
 | --- | --- | --- |
-| `_workspace/01_analyst_plan.md` | `fe-analyst` | 사용자 요청 분석, 인터페이스 정의, 페이지·컴포넌트·훅 단위 계획 |
-| `_workspace/02a_builder_status.md` | `fe-builder` | 생성·수정한 컴포넌트 파일 경로, props 타입 정의 위치, 필요한 훅·스토어 명세, 재사용 vs 신규 결정, 미해결 TODO |
-| `_workspace/02b_integration_status.md` | `fe-integration` | 생성·수정한 훅·스토어·API 함수 경로, 쿼리 키·캐시 전략, builder 컴포넌트 props와의 매칭 결과, 인터페이스 불일치 시 임시 해결책 |
-| `_workspace/03_qa_report.md` | `fe-qa` | PASS/FAIL과 항목별 검증 결과. FAIL이면 오케스트레이터가 해당 에이전트(`fe-builder` 또는 `fe-integration`)를 재호출 |
+| `_workspace/01_analyst_plan.md` | `skai-analyst` | 사용자 요청 분석, 인터페이스 정의, 페이지·컴포넌트·훅 단위 계획 |
+| `_workspace/02a_builder_status.md` | `skai-builder` | 생성·수정한 컴포넌트 파일 경로, props 타입 정의 위치, 필요한 훅·스토어 명세, 재사용 vs 신규 결정, 미해결 TODO |
+| `_workspace/02b_integration_status.md` | `skai-integration` | 생성·수정한 훅·스토어·API 함수 경로, 쿼리 키·캐시 전략, builder 컴포넌트 props와의 매칭 결과, 인터페이스 불일치 시 임시 해결책 |
+| `_workspace/03_qa_report.md` | `skai-qa` | PASS/FAIL과 항목별 검증 결과. FAIL이면 오케스트레이터가 해당 에이전트(`skai-builder` 또는 `skai-integration`)를 재호출 |
 | `_workspace_prev/` | 오케스트레이터 | 직전 1회분 스냅샷. 새 실행 진입 시 이전 `_workspace_prev/`는 삭제되고 현재 `_workspace/`가 이 위치로 이동 (직전 1회만 보관) |
 
 **디버깅 시 어디부터 보나:** 파일 번호(`01` → `02a`/`02b` → `03`)가 곧 Phase 진행도입니다. 마지막으로 존재하는 파일까지가 완료된 단계이고, 그 다음 단계에서 멈췄거나 실패했다는 뜻입니다. `_workspace_prev/`와 현재 `_workspace/`를 비교하면 이번 실행에서 무엇이 바뀌었는지 보입니다.
 
-**부분 재실행과의 매핑:** 사용자가 "이 부분만 수정", "다시", "보완" 등을 요청할 때 어느 파일이 갱신되는지는 [fe-orchestrator의 부분 재실행 가이드](agent-docs/skills/fe-orchestrator.md#부분-재실행-가이드)를 따릅니다 — 컴포넌트 수정은 `02a`, 훅·스토어 수정은 `02b`만 갱신되고 `03`은 항상 재검증됩니다.
+**부분 재실행과의 매핑:** 사용자가 "이 부분만 수정", "다시", "보완" 등을 요청할 때 어느 파일이 갱신되는지는 [skai-orchestrator의 부분 재실행 가이드](agent-docs/skills/skai-orchestrator.md#부분-재실행-가이드)를 따릅니다 — 컴포넌트 수정은 `02a`, 훅·스토어 수정은 `02b`만 갱신되고 `03`은 항상 재검증됩니다.
 
 ---
 
@@ -184,7 +184,7 @@ target-repo/
 ### 새 스킬 추가
 
 1. 원본 작성: `agent-docs/templates/skill-template.md`를 `agent-docs/skills/<name>.md`로 복사.
-2. 이름 규칙: 공통 작업은 `skai-` 접두사 (예: `skai-commit`), FE 에이전트 팀 오케스트레이터는 `fe-orchestrator`. 그 외 도메인 스킬은 적절한 접두사로 분류.
+2. 이름 규칙: 공통 작업은 `skai-` 접두사 (예: `skai-commit`), FE 에이전트 팀 오케스트레이터는 `skai-orchestrator`. 그 외 도메인 스킬은 적절한 접두사로 분류.
 3. 본문에 `## Description` 또는 `## 설명` 섹션을 두면 sync가 그 내용을 SKILL.md frontmatter의 `description`으로 자동 추출합니다. (없으면 기본 문구가 들어가지만 매칭 정확도가 떨어집니다.)
 4. 도구별 산출물 확인: sync 실행 후 `.claude/skills/<name>/SKILL.md`와 `.agents/skills/<name>/SKILL.md` 두 곳 모두 생성됐는지 확인.
 5. 글로벌 설치가 필요한 스킬(예: 새 프로젝트 부트스트랩에 쓰이는 스킬)은 [`scripts/sync-agent-config.sh`](scripts/sync-agent-config.sh)의 `GLOBAL_SKILL_NAMES` 배열에 이름을 추가합니다 — sync 시 `~/.claude/skills/`에도 복사됩니다. 등록 기준은 [글로벌 스킬 등록 정책](#글로벌-스킬-등록-정책-global_skill_names) 참고.
@@ -258,9 +258,9 @@ pnpm agent:sync
 target repo 루트에서:
 
 ```bash
-ls .claude/agents/fe-{analyst,builder,integration,qa}.md
-ls .claude/skills/{fe-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
-ls .codex/agents/fe-*.toml
+ls .claude/agents/skai-{analyst,builder,integration,qa}.md
+ls .claude/skills/{skai-orchestrator,skai-commit,skai-convention-review,skai-fe-init,skai-pr}/SKILL.md
+ls .codex/agents/skai-*.toml
 ls .agents/skills/*/SKILL.md
 grep -nE "^## 하네스|harness-changelog:upstream:" AGENTS.md
 grep -E "^/?_workspace/?" .gitignore
@@ -286,8 +286,8 @@ Claude Code에서 target repo를 열고 입력합니다:
 
 생성되지 않으면 진단 순서:
 
-1. `/agents` 자동완성에 `fe-analyst`·`fe-builder`·`fe-integration`·`fe-qa` 노출 → 안 보이면 `.claude/agents/` 누락
-2. `/skills`에 `fe-orchestrator` 노출 → 안 보이면 `.claude/skills/fe-orchestrator/SKILL.md` 누락
+1. `/agents` 자동완성에 `skai-analyst`·`skai-builder`·`skai-integration`·`skai-qa` 노출 → 안 보이면 `.claude/agents/` 누락
+2. `/skills`에 `skai-orchestrator` 노출 → 안 보이면 `.claude/skills/skai-orchestrator/SKILL.md` 누락
 3. `AGENTS.md`에 `## 하네스: FE-COMMON` 섹션 존재 → 없으면 sync 한 번 더 (backfill)
 4. `CLAUDE.md`에 `@AGENTS.md` import 라인 존재
 
@@ -334,14 +334,14 @@ REF=v0.1.0 \
 
 ```bash
 # 부트스트랩 + sync 모두 같은 브랜치로
-REMOTE_BRANCH=harness \
+REMOTE_BRANCH=feat/your-branch \
   && mkdir -p scripts \
   && curl -fsSL "https://raw.githubusercontent.com/skaiworldwide/OT_M_FE_AGENTS_CONFIG/${REMOTE_BRANCH}/scripts/sync-agent-config.sh" -o scripts/sync-agent-config.sh \
   && chmod +x scripts/sync-agent-config.sh \
   && REMOTE_BRANCH="${REMOTE_BRANCH}" bash scripts/sync-agent-config.sh
 
 # 부트스트랩 이후 반복 sync
-REMOTE_BRANCH=harness pnpm agent:sync
+REMOTE_BRANCH=feat/your-branch pnpm agent:sync
 ```
 
 머지 후엔 환경변수를 빼면 자동으로 `main`으로 돌아갑니다. **운영엔 사용하지 말고 검증·PoC 용도로만** 씁니다.

@@ -128,19 +128,19 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 
 **목표:** React/TypeScript 프론트엔드 기능 개발을 분석 → 빌드 → 통합 → 검증 파이프라인으로 자동화
 
-**트리거:** 컴포넌트·페이지·API 연동·Zustand 스토어·TanStack Query 훅·SCSS 스타일·기능 추가/수정/보완/재구현 등 프론트엔드 개발 작업 요청 시 `fe-orchestrator` 스킬을 사용한다. 단순 질문이나 코드 설명은 직접 응답한다.
+**트리거:** 컴포넌트·페이지·API 연동·Zustand 스토어·TanStack Query 훅·SCSS 스타일·기능 추가/수정/보완/재구현 등 프론트엔드 개발 작업 요청 시 `skai-orchestrator` 스킬을 사용한다. 단순 질문이나 코드 설명은 직접 응답한다.
 
 **구성:**
-- 에이전트 원본: `agent-docs/agents/fe-{analyst,builder,integration,qa}.md` (sync 시 도구별 위치·포맷으로 분기 생성)
-- 오케스트레이터: `agent-docs/skills/fe-orchestrator.md` (sync 시 `.claude/skills/`·`.agents/skills/` 양쪽에 SKILL.md 패키지로 배포)
+- 에이전트 원본: `agent-docs/agents/skai-{analyst,builder,integration,qa}.md` (sync 시 도구별 위치·포맷으로 분기 생성)
+- 오케스트레이터: `agent-docs/skills/skai-orchestrator.md` (sync 시 `.claude/skills/`·`.agents/skills/` 양쪽에 SKILL.md 패키지로 배포)
 - 도메인 지식 출처: `AGENTS.md`의 "핵심 도메인 개념" 섹션과 그 안에서 참조하는 문서
 
 **환경 범위:** Claude Code와 Codex CLI 두 환경에서 동작한다. Phase 흐름과 파일 핸드오프는 동일하고, dispatch만 다르다.
 
 | 도구 | 에이전트 위치 | dispatch |
 |------|--------------|----------|
-| Claude Code | `.claude/agents/fe-*.md` | `Agent(subagent_type="fe-analyst", ...)` 네이티브 도구 |
-| Codex CLI | `.codex/agents/fe-*.toml` | 자연어 지시 ("fe-analyst 서브에이전트로 X를 실행하라") |
+| Claude Code | `.claude/agents/skai-*.md` | `Agent(subagent_type="skai-analyst", ...)` 네이티브 도구 |
+| Codex CLI | `.codex/agents/skai-*.toml` | 자연어 지시 ("skai-analyst 서브에이전트로 X를 실행하라") |
 
 **변경 이력:** 아래 표는 [`agent-docs/harness-changelog.md`](../agent-docs/harness-changelog.md)에서 sync 시 자동 갱신된다. 마커 안쪽은 직접 편집하지 않는다 — 다음 sync에서 덮어써진다. 프로젝트별 변경 이력이 필요하면 마커 바깥에 별도 표를 둔다.
 

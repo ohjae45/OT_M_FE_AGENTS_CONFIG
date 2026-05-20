@@ -198,11 +198,11 @@ lint_skill_file() {
 
   CHECKED_COUNT=$((CHECKED_COUNT + 1))
 
-  # Skill naming convention: skai-* for common skills, fe-orchestrator for the
-  # FE harness driver. Other prefixes are allowed but warned so reviewers can
+  # Skill naming convention: skai-* for all common skills, including the
+  # orchestrator. Other prefixes are allowed but warned so reviewers can
   # confirm the choice.
-  if ! printf '%s' "$basename_no_ext" | grep -Eq '^(skai-[a-z0-9-]+|fe-orchestrator)$'; then
-    report_warn "$file" "스킬 파일명 규칙(skai-* 또는 fe-orchestrator)에 맞지 않습니다."
+  if ! printf '%s' "$basename_no_ext" | grep -Eq '^skai-[a-z0-9-]+$'; then
+    report_warn "$file" "스킬 파일명 규칙(skai-*)에 맞지 않습니다."
   fi
 
   if ! grep -Eq '^## (Description|설명)[[:space:]]*$' "$file"; then

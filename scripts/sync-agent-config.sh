@@ -41,7 +41,7 @@ Options:
                          confirm.
   --reset-managed-only   Wipe only sync-managed artifacts (agent-docs/rules,
                          agent-docs/guides, agent-docs/harness-changelog.md,
-                         upstream fe-* agents under .claude/agents and
+                         upstream skai-* agents under .claude/agents and
                          .codex/agents, generated <skill>/SKILL.md packages,
                          .claude/settings.json) then run a fresh sync.
                          Seed files (AGENTS.md, CLAUDE.md, .gitignore,
@@ -321,7 +321,7 @@ if [ "$RESET_MANAGED_MODE" = "1" ]; then
   fi
 fi
 
-# Workspace directories that fe-orchestrator generates on every run. They hold
+# Workspace directories that skai-orchestrator generates on every run. They hold
 # transient analyst/builder/QA notes and must never be committed.
 HARNESS_WORKSPACE_ENTRIES=("_workspace/" "_workspace_prev/")
 
@@ -370,7 +370,7 @@ copy_seed "$SOURCE_DIR/templates/codex-config.toml" "$TARGET_DIR/.codex/config.t
 #
 # Seeds are never overwritten, so an existing AGENTS.md/CLAUDE.md from an
 # earlier sync would otherwise miss the trigger rules that activate the
-# fe-orchestrator pipeline. Detect the missing section and append it once.
+# skai-orchestrator pipeline. Detect the missing section and append it once.
 # ---------------------------------------------------------------------------
 extract_harness_section() {
   # Capture from the harness heading to end of file. The leading separator is
@@ -412,7 +412,7 @@ append_harness_section_if_missing "$SOURCE_DIR/templates/AGENTS.md" "$TARGET_DIR
 
 # ---------------------------------------------------------------------------
 # Phase 1c: .gitignore workspace backfill — for target repos that already had
-# a .gitignore before the harness landed. fe-orchestrator writes runtime notes
+# a .gitignore before the harness landed. skai-orchestrator writes runtime notes
 # under _workspace/ and rotates the previous run to _workspace_prev/, so both
 # must be ignored. Skip seeded repos (already covered) and any line that
 # already lists the entry in a recognised form.
@@ -737,7 +737,7 @@ remove_deprecated_unprefixed_skill_copies() {
 # Cross-doc link rewrite for synced agent markdown
 #
 # Source agent files live under agent-docs/agents/ and reference sibling docs
-# with paths like `../rules/foo.md` or `../skills/fe-orchestrator.md`. Those
+# with paths like `../rules/foo.md` or `../skills/skai-orchestrator.md`. Those
 # resolve correctly inside the source repo, but after sync the targets become
 # `.claude/agents/foo.md`/`.codex/agents/foo.toml` and the structure changes:
 #   - rules stay at agent-docs/rules/   (not copied under .claude/)
@@ -760,7 +760,7 @@ rewrite_agent_doc_links() {
 #
 # Codex reads .codex/agents/*.toml for project-scoped subagents. Each TOML
 # file requires `name`, `description`, and `developer_instructions`; dispatch
-# happens via natural-language calls ("Have fe-analyst do X"), so the body of
+# happens via natural-language calls ("Have skai-analyst do X"), so the body of
 # the shared markdown source becomes the agent's system prompt verbatim.
 # ---------------------------------------------------------------------------
 extract_md_frontmatter_field() {
