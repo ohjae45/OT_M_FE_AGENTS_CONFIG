@@ -1,9 +1,9 @@
 # AGENTS.md
 
 이 문서는 이 프로젝트에서 AI coding agent가 우선 따라야 할 작업 원칙을 정의한다.
-상세 규칙은 [agent-docs/rules/](../agent-docs/rules/) 아래 문서를 참고한다.
+상세 규칙은 [agent-docs/rules/](agent-docs/rules/) 아래 문서를 참고한다.
 
-> **빈 섹션 채우는 방법**: 아래 각 섹션의 HTML 코멘트(`<!-- ... -->`)에 짧은 안내가 있고, 두 종류 도메인의 익명화 예시 모음은 [agent-docs/guides/agents-md-writing.md](../agent-docs/guides/agents-md-writing.md)에 있다. 채울 게 없는 섹션은 코멘트만 남기고 비워둔다.
+> **빈 섹션 채우는 방법**: 아래 각 섹션의 HTML 코멘트(`<!-- ... -->`)에 짧은 안내가 있고, 두 종류 도메인의 익명화 예시 모음은 [agent-docs/guides/agents-md-writing.md](agent-docs/guides/agents-md-writing.md)에 있다. 채울 게 없는 섹션은 코멘트만 남기고 비워둔다.
 
 ---
 
@@ -104,13 +104,13 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 
 | 작업 유형                                | 참고 문서                                                                  |
 | ---------------------------------------- | -------------------------------------------------------------------------- |
-| React 컴포넌트, 폴더 구조, 네이밍        | [frontend-common-rules.md](../agent-docs/rules/frontend-common-rules.md)   |
-| API 함수, Query 훅, DTO 타입 위치        | [api-rules.md](../agent-docs/rules/api-rules.md)                           |
-| TypeScript 타입, any, unknown, 타입 가드 | [typescript-rules.md](../agent-docs/rules/typescript-rules.md)             |
-| SCSS, SCSS Modules, className, mixin     | [styling-rules.md](../agent-docs/rules/styling-rules.md)                   |
-| Zustand, TanStack Query, 전역 상태       | [state-management-rules.md](../agent-docs/rules/state-management-rules.md) |
-| 작업 절차, 구조 변경, 검증, 문서화       | [workflow-rules.md](../agent-docs/rules/workflow-rules.md)                 |
-| Git 커밋 메시지, 작업 키워드             | [git-keyword-rules.md](../agent-docs/rules/git-keyword-rules.md)           |
+| React 컴포넌트, 폴더 구조, 네이밍        | [frontend-common-rules.md](agent-docs/rules/frontend-common-rules.md)   |
+| API 함수, Query 훅, DTO 타입 위치        | [api-rules.md](agent-docs/rules/api-rules.md)                           |
+| TypeScript 타입, any, unknown, 타입 가드 | [typescript-rules.md](agent-docs/rules/typescript-rules.md)             |
+| SCSS, SCSS Modules, className, mixin     | [styling-rules.md](agent-docs/rules/styling-rules.md)                   |
+| Zustand, TanStack Query, 전역 상태       | [state-management-rules.md](agent-docs/rules/state-management-rules.md) |
+| 작업 절차, 구조 변경, 검증, 문서화       | [workflow-rules.md](agent-docs/rules/workflow-rules.md)                 |
+| Git 커밋 메시지, 작업 키워드             | [git-keyword-rules.md](agent-docs/rules/git-keyword-rules.md)           |
 
 ## 우선순위
 
@@ -119,7 +119,7 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 1. 현재 사용자 요청
 2. 현재 프로젝트 요구사항
 3. 이 `AGENTS.md`
-4. 관련 상세 규칙 문서 : [agent-docs/rules/](../agent-docs/rules/)
+4. 관련 상세 규칙 문서 : [agent-docs/rules/](agent-docs/rules/)
 5. 기존 코드 패턴
 
 ---
@@ -142,7 +142,7 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 | Claude Code | `.claude/agents/skai-*.md` | `Agent(subagent_type="skai-analyst", ...)` 네이티브 도구 |
 | Codex CLI | `.codex/agents/skai-*.toml` | 자연어 지시 ("skai-analyst 서브에이전트로 X를 실행하라") |
 
-**변경 이력:** 아래 표는 [`agent-docs/harness-changelog.md`](../agent-docs/harness-changelog.md)에서 sync 시 자동 갱신된다. 마커 안쪽은 직접 편집하지 않는다 — 다음 sync에서 덮어써진다. 프로젝트별 변경 이력이 필요하면 마커 바깥에 별도 표를 둔다.
+**변경 이력:** 아래 표는 [`agent-docs/harness-changelog.md`](agent-docs/harness-changelog.md)에서 sync 시 자동 갱신된다. 마커 안쪽은 직접 편집하지 않는다 — 다음 sync에서 덮어써진다. 프로젝트별 변경 이력이 필요하면 마커 바깥에 별도 표를 둔다.
 
 <!-- harness-changelog:upstream:start -->
 | 날짜 | 변경 내용 | 대상 | 사유 |

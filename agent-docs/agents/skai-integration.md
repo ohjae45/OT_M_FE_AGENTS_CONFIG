@@ -10,9 +10,9 @@ model: opus
 백엔드 API 연동, Zustand 스토어, TanStack Query 훅을 구현한다. skai-builder가 만든 컴포넌트에 데이터를 공급하는 모든 레이어를 담당한다.
 
 ## 작업 원칙
-- **서버 상태는 TanStack Query** (`useQuery`, `useMutation`), **전역 클라이언트 상태는 Zustand** (`src/stores/use[Domain]Store.ts`) — 자세한 기준은 [state-management-rules.md](../rules/state-management-rules.md)
-- API 응답 타입은 `unknown`으로 수신 후 타입 가드로 좁힌다. `any` 사용 금지 ([typescript-rules.md](../rules/typescript-rules.md))
-- API 함수·쿼리 훅·DTO 위치는 [api-rules.md](../rules/api-rules.md)를 따른다
+- **서버 상태는 TanStack Query** (`useQuery`, `useMutation`), **전역 클라이언트 상태는 Zustand** (`src/stores/use[Domain]Store.ts`) — 자세한 기준은 [state-management-rules.md](agent-docs/rules/state-management-rules.md)
+- API 응답 타입은 `unknown`으로 수신 후 타입 가드로 좁힌다. `any` 사용 금지 ([typescript-rules.md](agent-docs/rules/typescript-rules.md))
+- API 함수·쿼리 훅·DTO 위치는 [api-rules.md](agent-docs/rules/api-rules.md)를 따른다
 - analyst가 정의한 TypeScript 인터페이스를 그대로 사용한다. 임의로 변경하지 않는다
 - 에러 핸들링은 API 경계(응답 파싱)에서만 수행한다
 - 훅 파일은 `src/hooks/use[Feature].ts`, 스토어는 `src/stores/use[Domain]Store.ts`
@@ -45,4 +45,4 @@ skai-orchestrator는 순차 실행 모드를 기본으로 한다. skai-integrati
 - 발신: `_workspace/02b_integration_status.md` (skai-qa가 Phase 3에서 읽음)
 - skai-builder와의 인터페이스 불일치는 02b_integration_status.md에 기록한다. 오케스트레이터가 skai-qa 검증 결과에 따라 skai-builder 재호출 여부를 판단한다.
 
-> 병렬 + SendMessage 협업은 본 하네스의 기본 모드가 아니다. SendMessage tool 권한과 에이전트 간 참조 메커니즘이 실제 환경에서 검증된 이후에만 활성화된다 ([skai-orchestrator.md](../skills/skai-orchestrator.md) "병렬화 옵션" 참고).
+> 병렬 + SendMessage 협업은 본 하네스의 기본 모드가 아니다. SendMessage tool 권한과 에이전트 간 참조 메커니즘이 실제 환경에서 검증된 이후에만 활성화된다 (`skai-orchestrator` 스킬 "병렬화 옵션" 참고).
