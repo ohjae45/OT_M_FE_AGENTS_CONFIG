@@ -1,0 +1,15 @@
+# .codex/config.toml — Codex CLI 프로젝트 설정
+#
+# 이 파일은 사용자 ~/.codex/config.toml을 이 프로젝트 범위에서 override합니다.
+# 비워두면 사용자 설정이 그대로 적용됩니다. 필요한 옵션만 주석을 풀어 사용하세요.
+#
+# 자주 쓰이는 옵션:
+#
+# model = "gpt-5-codex"
+# model_reasoning_effort = "medium"
+# sandbox_mode = "workspace-write"
+#
+# 자세한 설정은 https://developers.openai.com/codex/config-reference 참고.
+#
+# 서브에이전트(.codex/agents/*.toml)와 스킬(.agents/skills/<name>/SKILL.md)은
+# 별도 등록 없이 자동으로 인식됩니다. 이 파일에서는 세션 단위 기본값만 다룹니다.

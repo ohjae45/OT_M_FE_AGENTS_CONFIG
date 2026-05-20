@@ -28,8 +28,9 @@
 
 ### 네이밍 컨벤션
 
-- React에서 SCSS Modules 클래스는 className과 같은 `camelCase` 키로 접근한다.
-- 예: `styles.assistantTitle`
+- SCSS Modules 파일 내 클래스명은 `camelCase`로 작성한다.
+- React 컴포넌트에서 SCSS Modules 클래스는 dot notation으로 접근한다.
+- 예: `styles.assistantTitle` (O), `styles['assistant-title']` (X)
 
 | 대상        | 규칙         | 예시             |
 | ----------- | ------------ | ---------------- |
