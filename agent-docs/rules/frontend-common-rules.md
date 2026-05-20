@@ -41,8 +41,6 @@
 - **Zustand 스토어 파일명**: 파일명과 훅 이름은 `use[도메인명]Store` 패턴을 따른다.
 - **도메인 보조 파일명**: 도메인 관련 보조 파일명은 `도메인명.역할명.ts` 형식을 사용하며, 도메인명은 `camelCase`를 사용한다.
 - **역할명**: 역할명은 파일에 담긴 코드 종류가 명확히 드러나는 이름을 사용한다. 예: `types`, `utils`, `api`, `query`, `constants`
-- **API 파일**: `api` 파일에는 순수 API 요청 함수만 작성한다.
-- **Query 파일**: `query` 파일에는 TanStack Query의 `useQuery`, `useMutation`, Query Key, Query Options 관련 코드를 작성한다.
 - **유틸 파일**: 유틸 함수가 하나만 있더라도 파일명은 도메인 기준의 `도메인명.utils.ts` 형식을 사용한다.
 - **SCSS 모듈 파일명**: `camelCase`를 사용하며 `*.module.scss` 형식을 사용한다.
 

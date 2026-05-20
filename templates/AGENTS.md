@@ -52,10 +52,9 @@ pages/
 
 <!--
 이 프로젝트의 API 작성 규칙을 정의한다.
-공통 규칙 문서에 없는 프로젝트 전용 패턴만 적는다.
+공통 API 규칙 문서에 없는 프로젝트 전용 패턴만 적는다.
 
 아래 항목을 채운다.
-- 파일 분리 규칙 (예: *.api.ts / *.query.ts)
 - HTTP 클라이언트 (예: customAxios, fetch 등)
 - 에러 처리 방식
 - 인증 처리 방식 (인터셉터, 토큰 등)
@@ -106,10 +105,11 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 | 작업 유형                                | 참고 문서                                                                  |
 | ---------------------------------------- | -------------------------------------------------------------------------- |
 | React 컴포넌트, 폴더 구조, 네이밍        | [frontend-common-rules.md](../agent-docs/rules/frontend-common-rules.md)   |
+| API 함수, Query 훅, DTO 타입 위치        | [api-rules.md](../agent-docs/rules/api-rules.md)                           |
 | TypeScript 타입, any, unknown, 타입 가드 | [typescript-rules.md](../agent-docs/rules/typescript-rules.md)             |
 | SCSS, SCSS Modules, className, mixin     | [styling-rules.md](../agent-docs/rules/styling-rules.md)                   |
 | Zustand, TanStack Query, 전역 상태       | [state-management-rules.md](../agent-docs/rules/state-management-rules.md) |
-| 작업 절차, 검증, 문서화                  | [workflow-rules.md](../agent-docs/rules/workflow-rules.md)                 |
+| 작업 절차, 구조 변경, 검증, 문서화       | [workflow-rules.md](../agent-docs/rules/workflow-rules.md)                 |
 | Git 커밋 메시지, 작업 키워드             | [git-keyword-rules.md](../agent-docs/rules/git-keyword-rules.md)           |
 
 ## 우선순위
