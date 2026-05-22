@@ -23,6 +23,7 @@ model: opus
 - 사용자 기능 요청 (자연어)
 - 기존 코드베이스 (`src/` 디렉토리)
 - 프로젝트 도메인 지식 (`AGENTS.md`, 첨부된 기획·계획 문서)
+- **`_workspace/00_designer_spec.md` (존재 시)** — skai-designer가 작성한 시각 명세. 컴포넌트 시각 분해·상태(variant)·접근성 힌트를 인터페이스·컴포넌트 계층 설계에 반영한다. designer spec의 상태(loading/empty/error 등)는 props에 그에 대응하는 플래그·nullable 처리·variant union 타입으로 반영한다
 - `_workspace/` 디렉토리 내 기존 산출물 (재실행 시)
 
 ### 출력

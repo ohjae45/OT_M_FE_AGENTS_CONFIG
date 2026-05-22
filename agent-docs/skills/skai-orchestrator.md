@@ -11,6 +11,7 @@
 ## 실행 모드
 
 모든 Phase를 서브 에이전트 단위로 순차 실행한다:
+- **Phase 0.5 (디자인, 조건부)**: skai-designer 단독 — 이미지 첨부·시안·자연어 UI 설명이 있을 때만 실행
 - Phase 1 (분석): skai-analyst 단독
 - Phase 2 (빌드): skai-builder → skai-integration **순차 호출** (`_workspace/` 파일로 핸드오프)
 - Phase 3 (QA): skai-qa 단독
@@ -48,6 +49,37 @@ ls _workspace/ 2>/dev/null || echo "초기 실행"
 rm -rf _workspace_prev/ && mv _workspace/ _workspace_prev/  # 새 실행 진입 시
 ```
 
+## Phase 0.5: 디자인 (조건부 서브 에이전트 모드)
+
+사용자 prompt에 다음 중 하나라도 있을 때만 `skai-designer`를 호출한다:
+
+1. 이미지 첨부 (스크린샷·디자인 시안·UI 모형 등) — 파일 경로가 prompt에 포함됨
+2. 자연어 UI 설명 — "카드 형태로 나열", "오른쪽 사이드에 패널", "헤더에 검색 바" 등 시각적 묘사 표현
+3. 사용자가 명시적으로 "디자인 명세부터", "퍼블리싱 명세 만들어줘" 요청
+
+위 셋 모두 없으면 Phase 0.5는 건너뛰고 Phase 1로 진입한다. 이 판단은 오케스트레이터가 직접 수행한다 (단순 기능 요청, 버그 수정, 데이터 레이어 변경만 있는 요청은 skip).
+
+```
+Agent(
+  description="디자인 시안 → 시각 명세화",
+  subagent_type="skai-designer",
+  prompt="""
+사용자 요청: {사용자 요청 원문}
+첨부 이미지: {파일 경로 또는 "없음"}
+실행 모드: {초기/부분/새 실행}
+
+프로젝트 도메인 지식은 AGENTS.md를 본다.
+기존 SCSS 토큰을 우선 매핑한다 (--ws-accent-* 등 SKAI 브랜드 컬러 우선).
+_workspace/00_designer_spec.md를 생성하고 완료하라.
+입력이 부족해 명세를 만들 수 없다고 판단되면 "디자인 입력 없음 — Phase 0.5 skip"을 보고하라.
+  """
+)
+```
+
+Phase 0.5 완료 조건: `_workspace/00_designer_spec.md` 파일 생성됨 (또는 skip 보고).
+
+skip 보고 시 오케스트레이터는 그 사실을 stdout에 기록하고 Phase 1로 진입한다. 이후 Phase에서 designer spec 부재를 가정으로 진행한다.
+
 ## Phase 1: 분석 (서브 에이전트 모드)
 
 `skai-analyst` 서브에이전트를 직접 호출한다.
@@ -59,8 +91,10 @@ Agent(
   prompt="""
 사용자 요청: {사용자 요청 원문}
 실행 모드: {초기/부분/새 실행}
+디자이너 명세: {_workspace/00_designer_spec.md 존재 시 "있음 — 반드시 먼저 읽어라" / 없으면 "없음"}
 
 프로젝트 도메인 지식은 AGENTS.md를 본다.
+_workspace/00_designer_spec.md가 있으면 그것을 먼저 읽고, 시각 분해/상태(variant)/접근성 힌트를 인터페이스·컴포넌트 계층 설계에 반영하라.
 _workspace/01_analyst_plan.md를 생성하고 완료하라.
   """
 )
@@ -80,11 +114,13 @@ Agent(
   subagent_type="skai-builder",
   prompt="""
 _workspace/01_analyst_plan.md를 읽고 skai-builder 지시사항에 따라 컴포넌트를 구현하라.
+_workspace/00_designer_spec.md가 존재하면 함께 읽고 시각 토큰·spacing·상태(variant)·인터랙션·반응형 기준을 그대로 따른다. designer spec과 analyst plan이 충돌하면 시각 표현은 designer spec, 데이터 shape·props 타입은 analyst plan을 따르고 02a_builder_status.md에 충돌 사항을 기록한다.
 완료 후 _workspace/02a_builder_status.md를 작성하라. 다음 항목을 반드시 포함하라:
 - 생성/수정한 컴포넌트 파일 경로
 - 각 컴포넌트의 props 타입 정의 위치 (skai-integration이 데이터 shape을 맞출 수 있도록)
 - 데이터 페칭이 필요한 지점 (어떤 훅·스토어가 필요한지 명시)
 - 재사용 vs 신규 작성 결정
+- designer spec의 어느 토큰/상태가 어느 .module.scss 클래스에 매핑되었는지 (designer spec이 있는 경우)
 - 미해결 이슈·TODO
   """
 )
@@ -143,12 +179,20 @@ Agent(
   prompt="""
 _workspace/01_analyst_plan.md, 02a_builder_status.md, 02b_integration_status.md를 읽고
 Phase 2에서 구현된 파일들을 검증하라.
+_workspace/00_designer_spec.md가 존재하면 함께 읽고, 시각 토큰 매핑 결과(designer spec ↔ builder가 사용한 SCSS 변수)와 상태/variant 누락 여부를 추가 점검 항목으로 검증하라.
 _workspace/03_qa_report.md를 생성하라. PASS/FAIL과 항목별 결과를 포함하라.
   """
 )
 ```
 
-QA FAIL 시 오케스트레이터가 보고서를 읽고 해당 에이전트(skai-builder 또는 skai-integration)를 재호출해 수정 후 skai-qa를 다시 호출한다. PASS 시 Phase 4로 이동.
+QA FAIL 시 오케스트레이터가 보고서를 읽고 해당 에이전트(skai-designer / skai-builder / skai-integration)를 재호출해 수정 후 skai-qa를 다시 호출한다. PASS 시 Phase 4로 이동.
+
+| FAIL 원인 | 재호출 에이전트 |
+|----------|----------------|
+| 시각 토큰 누락·잘못된 변수 사용 | skai-builder (그러나 designer spec과 어긋난 거면 skai-designer를 먼저 재호출해 토큰 매핑 갱신) |
+| 상태/variant 누락 (loading/empty/error 등) | skai-designer (명세 보강) → skai-builder (재구현) |
+| props ↔ 훅 반환 타입 불일치 | skai-builder 또는 skai-integration |
+| TypeScript·lint 오류 | 해당 파일 작성자 (대부분 skai-builder 또는 skai-integration) |
 
 ## Phase 4: 완료 보고
 
@@ -174,8 +218,12 @@ QA FAIL 시 오케스트레이터가 보고서를 읽고 해당 에이전트(ska
 
 | 상황 | 처리 |
 |------|------|
+| skai-designer 입력 부족 (이미지·텍스트 설명 둘 다 없음) | Phase 0.5 skip, Phase 1로 진입. 사용자에게 알림 |
+| skai-designer가 이미지 경로를 읽지 못함 | 경로 재확인을 사용자에게 요청. Phase 1 진입 보류 |
+| skai-designer 명세 생성 실패 | 재시도 1회 후 실패 시 명세 없이 Phase 1로 진행 (보고서에 누락 명시) |
 | skai-analyst 계획 생성 실패 | 재시도 1회 후 실패 시 사용자에게 요청 구체화 요청 |
 | 빌드 단계 인터페이스 불일치 | skai-integration이 02b_integration_status.md에 불일치 내역을 기록하고 진행. skai-qa가 잡아내면 오케스트레이터가 skai-builder를 재호출해 props 타입 수정 후 skai-integration·skai-qa 재실행 |
+| 시각 명세 ↔ 구현 시각 불일치 (QA FAIL) | skai-designer 재호출 (명세 보강 필요 시) → skai-builder 재호출 → skai-qa 재호출 |
 | QA FAIL (수정 2회 후에도) | 실패 항목을 보고서에 명시하고 사용자에게 수동 수정 안내 |
 | `pnpm typecheck` 환경 없음 | 정적 분석으로 대체, 보고서에 "빌드 환경 미구성" 명시 |
 
@@ -183,28 +231,46 @@ QA FAIL 시 오케스트레이터가 보고서를 읽고 해당 에이전트(ska
 
 사용자가 "이 부분만 수정", "다시", "개선", "보완" 등을 요청할 때:
 
+- 시각 명세만 갱신(새 이미지·시안 첨부) → Phase 0.5 재실행 (`_workspace/00_designer_spec.md` → `00_designer_spec_v2.md`로 백업 후 덮어쓰기) + 영향 받는 Phase 2 재실행 + Phase 3
 - 컴포넌트 수정 → Phase 2 (skai-builder만, `_workspace/02a_builder_status.md` 갱신) + Phase 3
 - 훅/스토어 수정 → Phase 2 (skai-integration만, `_workspace/02b_integration_status.md` 갱신) + Phase 3
 - 인터페이스 변경 → Phase 1 재실행 후 Phase 2 전체 + Phase 3
+- 시각 토큰만 교체("색만 바꿔줘", "spacing 좀 조이자") → Phase 0.5 부분 갱신 + skai-builder만 재호출 + Phase 3
 - QA 재검증만 → Phase 3만
 
-`_workspace/`의 산출물 번호(01 → 02a/02b → 03)로 "어디까지 끝났는지" 추적한다.
+`_workspace/`의 산출물 번호(00 → 01 → 02a/02b → 03)로 "어디까지 끝났는지" 추적한다.
 
 ## 테스트 시나리오
 
-### 정상 흐름
+### 정상 흐름 (디자인 입력 없음)
 1. "사용자 프로필 카드 컴포넌트 만들어줘" 입력
 2. Phase 0: `_workspace` 없음 → 초기 실행
-3. Phase 1: analyst가 컴포넌트 계획 + 인터페이스 정의
-4. Phase 2: builder가 `*.tsx`/`*.module.scss` 구현, integration이 `use*` 훅 구현
-5. Phase 3: QA가 props ↔ 훅 타입 교차 검증
-6. Phase 4: 생성 파일 목록과 사용법 보고
+3. Phase 0.5: 이미지·시각 설명 없음 → skip
+4. Phase 1: analyst가 컴포넌트 계획 + 인터페이스 정의
+5. Phase 2: builder가 `*.tsx`/`*.module.scss` 구현, integration이 `use*` 훅 구현
+6. Phase 3: QA가 props ↔ 훅 타입 교차 검증
+7. Phase 4: 생성 파일 목록과 사용법 보고
+
+### 정상 흐름 (디자인 입력 있음)
+1. "이 시안대로 카드 만들어줘 [이미지 첨부]" 입력
+2. Phase 0: `_workspace` 없음 → 초기 실행
+3. Phase 0.5: designer가 이미지 분석 → 시각 토큰을 `--ws-accent-*` 등 기존 토큰과 매핑하고 상태/variant·반응형 명세 작성 → `_workspace/00_designer_spec.md`
+4. Phase 1: analyst가 designer spec을 읽고 loading/empty/error variant를 반영한 인터페이스 + 컴포넌트 계층 정의
+5. Phase 2: builder가 designer spec의 토큰을 그대로 사용해 `*.module.scss` 구현, integration이 `use*` 훅 구현
+6. Phase 3: QA가 시각 토큰 매핑 + props ↔ 훅 타입 교차 검증
+7. Phase 4: 생성 파일 목록과 사용법 보고
 
 ### 에러 흐름
 1. "버튼 색상 수정해줘" 입력
-2. Phase 0: `_workspace` 있음 + 부분 수정 → Phase 2 (skai-builder만) + Phase 3
+2. Phase 0: `_workspace` 있음 + 부분 수정 → Phase 0.5는 skip (시각 설명·이미지 없음) → Phase 2 (skai-builder만) + Phase 3
 3. Phase 2: builder가 해당 모듈 SCSS 수정
 4. Phase 3: QA FAIL — SCSS 변수 미사용 → builder 재수정 → QA PASS
+
+### 시각 명세 갱신 흐름
+1. "이 시안으로 다시 [새 이미지 첨부]" 입력
+2. Phase 0: `_workspace` 있음 → `_workspace_prev/`로 백업 후 새 실행
+3. Phase 0.5: designer가 새 명세 작성 → `_workspace/00_designer_spec.md` (이전은 v2 백업)
+4. 이후 Phase 1 → 2 → 3 전체 재실행
 
 ## 참고 문서
 

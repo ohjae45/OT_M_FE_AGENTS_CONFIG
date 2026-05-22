@@ -126,12 +126,12 @@ AI가 import 경로를 잘못 쓰지 않도록 하는 게 목적이다.
 
 ## 하네스: FE-COMMON
 
-**목표:** React/TypeScript 프론트엔드 기능 개발을 분석 → 빌드 → 통합 → 검증 파이프라인으로 자동화
+**목표:** React/TypeScript 프론트엔드 기능 개발을 디자인 → 분석 → 빌드 → 통합 → 검증 파이프라인으로 자동화
 
-**트리거:** 컴포넌트·페이지·API 연동·Zustand 스토어·TanStack Query 훅·SCSS 스타일·기능 추가/수정/보완/재구현 등 프론트엔드 개발 작업 요청 시 `skai-orchestrator` 스킬을 사용한다. 단순 질문이나 코드 설명은 직접 응답한다.
+**트리거:** 컴포넌트·페이지·API 연동·Zustand 스토어·TanStack Query 훅·SCSS 스타일·기능 추가/수정/보완/재구현·디자인 시안/스크린샷/이미지 첨부·"이런 UI 만들어줘"·"퍼블리싱" 등 프론트엔드 개발 작업 요청 시 `skai-orchestrator` 스킬을 사용한다. 단순 질문이나 코드 설명은 직접 응답한다.
 
 **구성:**
-- 에이전트 원본: `agent-docs/agents/skai-{analyst,builder,integration,qa}.md` (sync 시 도구별 위치·포맷으로 분기 생성)
+- 에이전트 원본: `agent-docs/agents/skai-{designer,analyst,builder,integration,qa}.md` (sync 시 도구별 위치·포맷으로 분기 생성). `skai-designer`는 Phase 0.5 조건부 단계로, 이미지 시안 또는 자연어 UI 설명이 있을 때만 실행되어 시각 명세를 작성
 - 오케스트레이터: `agent-docs/skills/skai-orchestrator.md` (sync 시 `.claude/skills/`·`.agents/skills/` 양쪽에 SKILL.md 패키지로 배포)
 - 도메인 지식 출처: `AGENTS.md`의 "핵심 도메인 개념" 섹션과 그 안에서 참조하는 문서
 

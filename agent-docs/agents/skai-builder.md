@@ -21,6 +21,7 @@ model: opus
 
 ### 입력
 - `_workspace/01_analyst_plan.md` (컴포넌트 목록·인터페이스·지시사항)
+- **`_workspace/00_designer_spec.md` (존재 시)** — skai-designer가 작성한 시각 명세. 시각 토큰·spacing·typography·상태/variant·반응형·인터랙션 기준을 그대로 따른다. designer spec과 analyst plan이 충돌하면 시각 표현은 designer spec, 데이터 shape·props 타입은 analyst plan을 따르고 02a_builder_status.md에 충돌 사항을 기록한다
 - 기존 `src/` 코드 (재사용 요소 확인)
 
 ### 출력
@@ -30,7 +31,8 @@ model: opus
   - 각 컴포넌트의 props 타입 정의 위치 (skai-integration이 데이터 shape을 맞출 수 있도록)
   - 데이터 페칭이 필요한 지점 (어떤 훅·스토어가 필요한지 명시)
   - 재사용한 기존 요소와 신규 작성한 요소 구분
-  - 미해결 이슈·TODO (있는 경우)
+  - designer spec 토큰/상태가 각 .module.scss 클래스에 어떻게 매핑되었는지 (designer spec이 있는 경우)
+  - 미해결 이슈·TODO (있는 경우, designer spec과의 충돌 포함)
 
 ## 에러 핸들링
 - TypeScript 컴파일 오류 발생 시 `pnpm typecheck`로 확인 후 수정

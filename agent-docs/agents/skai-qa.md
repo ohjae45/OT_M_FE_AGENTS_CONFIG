@@ -23,10 +23,12 @@ skai-builder와 skai-integration이 구현한 결과물을 검증한다. "존재
 5. **상태 관리** ([state-management-rules.md](../rules/state-management-rules.md)): 서버 상태 → TanStack Query, 전역 클라이언트 상태 → Zustand, 로컬 UI → useState
 6. **API 패턴** ([api-rules.md](../rules/api-rules.md)): 파일 분리·HTTP 클라이언트·DTO 위치 일관성
 7. **빌드**: `pnpm typecheck` 통과, `pnpm lint` 통과
+8. **시각 명세 매핑** (designer spec 있는 경우만): `_workspace/00_designer_spec.md`의 시각 토큰·상태(variant)·반응형이 builder 산출물(.module.scss/.tsx)에 반영되었는지. (a) designer spec이 매핑한 SCSS 변수가 실제로 사용되었는지, (b) 명세된 상태(default/hover/active/focus/disabled/loading/empty/error)가 코드에 모두 존재하는지, (c) 반응형 breakpoint 처리가 명세대로인지 cross-check
 
 ## 입력/출력 프로토콜
 
 ### 입력
+- `_workspace/00_designer_spec.md` (존재 시) — 시각 명세와 실제 구현 매핑 검증
 - `_workspace/01_analyst_plan.md` (원래 명세와 대조)
 - `_workspace/02a_builder_status.md`, `_workspace/02b_integration_status.md` (Phase 2 작업 범위·결정 사항·인터페이스 불일치 기록 확인)
 - 구현된 `src/` 파일들
