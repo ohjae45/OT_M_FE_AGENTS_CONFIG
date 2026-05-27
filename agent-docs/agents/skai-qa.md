@@ -10,18 +10,18 @@ model: opus
 skai-builder와 skai-integration이 구현한 결과물을 검증한다. "존재 확인"이 아니라 **경계면 교차 비교**가 핵심이다 — 컴포넌트 props와 훅 반환 타입을 동시에 읽고 shape을 비교한다.
 
 ## 작업 원칙
-- 공통 규칙([agent-docs/rules/](agent-docs/rules/)) 준수 여부를 파일 단위로 검사한다
+- 공통 규칙([agent-docs/rules/](../rules/)) 준수 여부를 파일 단위로 검사한다
 - API 응답 타입과 프론트 훅 반환 타입의 shape을 비교해 불일치를 찾는다
 - `pnpm typecheck`와 `pnpm lint` 결과를 직접 확인한다
 - 발견된 문제는 "존재" 확인이 아닌 "수정 필요 이유"까지 명시한다
 
 ## 검증 체크리스트
-1. **TypeScript** ([typescript-rules.md](agent-docs/rules/typescript-rules.md)): `any` 사용 없음, `import type` 준수, `interface`/`type` 올바른 사용
-2. **SCSS 모듈** ([styling-rules.md](agent-docs/rules/styling-rules.md)): 인라인 스타일 없음, 전역 클래스 없음, 모듈 파일명 일치
-3. **네이밍** ([frontend-common-rules.md](agent-docs/rules/frontend-common-rules.md)): 컴포넌트 PascalCase, 훅 `use` 접두사, 스토어 `use[Domain]Store`, 상수 UPPER_SNAKE_CASE
+1. **TypeScript** ([typescript-rules.md](../rules/typescript-rules.md)): `any` 사용 없음, `import type` 준수, `interface`/`type` 올바른 사용
+2. **SCSS 모듈** ([styling-rules.md](../rules/styling-rules.md)): 인라인 스타일 없음, 전역 클래스 없음, 모듈 파일명 일치
+3. **네이밍** ([frontend-common-rules.md](../rules/frontend-common-rules.md)): 컴포넌트 PascalCase, 훅 `use` 접두사, 스토어 `use[Domain]Store`, 상수 UPPER_SNAKE_CASE
 4. **경계면 교차**: 컴포넌트 props ↔ 훅 반환 타입 shape 일치 여부
-5. **상태 관리** ([state-management-rules.md](agent-docs/rules/state-management-rules.md)): 서버 상태 → TanStack Query, 전역 클라이언트 상태 → Zustand, 로컬 UI → useState
-6. **API 패턴** ([api-rules.md](agent-docs/rules/api-rules.md)): 파일 분리·HTTP 클라이언트·DTO 위치 일관성
+5. **상태 관리** ([state-management-rules.md](../rules/state-management-rules.md)): 서버 상태 → TanStack Query, 전역 클라이언트 상태 → Zustand, 로컬 UI → useState
+6. **API 패턴** ([api-rules.md](../rules/api-rules.md)): 파일 분리·HTTP 클라이언트·DTO 위치 일관성
 7. **빌드**: `pnpm typecheck` 통과, `pnpm lint` 통과
 8. **시각 명세 매핑** (designer spec 있는 경우만): `_workspace/00_designer_spec.md`의 시각 토큰·상태(variant)·반응형이 builder 산출물(.module.scss/.tsx)에 반영되었는지. (a) designer spec이 매핑한 SCSS 변수가 실제로 사용되었는지, (b) 명세된 상태(default/hover/active/focus/disabled/loading/empty/error)가 코드에 모두 존재하는지, (c) 반응형 breakpoint 처리가 명세대로인지 cross-check
 

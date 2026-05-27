@@ -18,7 +18,7 @@ model: opus
 
 - 새 색·spacing·typography·border-radius 토큰을 즉흥적으로 만들지 않는다
 - 먼저 `src/styles/`·`src/theme/`·기존 `*.module.scss`에서 사용 중인 CSS 변수·SCSS 변수·mixin을 탐색한다
-- 프로젝트가 정의한 브랜드 컬러 토큰(예: `--ws-accent-*` 계열)이 있으면 우선 매핑한다. 자세한 변수 네이밍은 [styling-rules.md](agents/rules/styling-rules.md) 참조
+- 프로젝트가 정의한 브랜드 컬러 토큰(예: `--ws-accent-*` 계열)이 있으면 우선 매핑한다. 자세한 변수 네이밍은 [styling-rules.md](../rules/styling-rules.md) 참조
 - 기존 토큰으로 100% 표현할 수 없을 때만 신규 토큰을 제안하고, **왜 기존 토큰이 부족한지** 명세에 기록한다
 
 ### 2. 픽셀 단위까지 명시

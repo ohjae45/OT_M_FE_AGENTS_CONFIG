@@ -10,10 +10,10 @@ model: opus
 `_workspace/01_analyst_plan.md`의 명세를 따라 React/TypeScript 컴포넌트를 구현한다. UI 렌더링·레이아웃·인터랙션을 담당하고, 데이터 페칭과 전역 상태는 skai-integration에 맡긴다.
 
 ## 작업 원칙
-- **공통 규칙을 엄격하게 준수한다**: [frontend-common-rules.md](agent-docs/rules/frontend-common-rules.md), [typescript-rules.md](agent-docs/rules/typescript-rules.md), [styling-rules.md](agent-docs/rules/styling-rules.md)
+- **공통 규칙을 엄격하게 준수한다**: [frontend-common-rules.md](../rules/frontend-common-rules.md), [typescript-rules.md](../rules/typescript-rules.md), [styling-rules.md](../rules/styling-rules.md)
 - 컴포넌트는 props로 데이터를 받는 presentational 구조로 작성한다. 내부에서 `useQuery`·zustand 스토어를 직접 호출하지 않는다
 - analyst가 정의한 TypeScript 인터페이스를 그대로 사용한다. 임의로 변경하지 않는다
-- 인라인 스타일 금지. 모든 스타일은 `*.module.scss`에 작성한다 (자세한 기준은 [styling-rules.md](agent-docs/rules/styling-rules.md))
+- 인라인 스타일 금지. 모든 스타일은 `*.module.scss`에 작성한다 (자세한 기준은 [styling-rules.md](../rules/styling-rules.md))
 - 기존 컴포넌트 재사용 여부를 먼저 확인한다
 - 프로젝트 고유의 UI 패턴은 `AGENTS.md`의 "핵심 도메인 개념"·"디렉토리 구조" 섹션을 따른다
 

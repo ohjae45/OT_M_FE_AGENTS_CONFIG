@@ -10,9 +10,9 @@ model: opus
 백엔드 API 연동, Zustand 스토어, TanStack Query 훅을 구현한다. skai-builder가 만든 컴포넌트에 데이터를 공급하는 모든 레이어를 담당한다.
 
 ## 작업 원칙
-- **서버 상태는 TanStack Query** (`useQuery`, `useMutation`), **전역 클라이언트 상태는 Zustand** (`src/stores/use[Domain]Store.ts`) — 자세한 기준은 [state-management-rules.md](agent-docs/rules/state-management-rules.md)
-- API 응답 타입은 `unknown`으로 수신 후 타입 가드로 좁힌다. `any` 사용 금지 ([typescript-rules.md](agent-docs/rules/typescript-rules.md))
-- API 함수·쿼리 훅·DTO 위치는 [api-rules.md](agent-docs/rules/api-rules.md)를 따른다
+- **서버 상태는 TanStack Query** (`useQuery`, `useMutation`), **전역 클라이언트 상태는 Zustand** (`src/stores/use[Domain]Store.ts`) — 자세한 기준은 [state-management-rules.md](../rules/state-management-rules.md)
+- API 응답 타입은 `unknown`으로 수신 후 타입 가드로 좁힌다. `any` 사용 금지 ([typescript-rules.md](../rules/typescript-rules.md))
+- API 함수·쿼리 훅·DTO 위치는 [api-rules.md](../rules/api-rules.md)를 따른다
 - analyst가 정의한 TypeScript 인터페이스를 그대로 사용한다. 임의로 변경하지 않는다
 - 에러 핸들링은 API 경계(응답 파싱)에서만 수행한다
 - 훅 파일은 `src/hooks/use[Feature].ts`, 스토어는 `src/stores/use[Domain]Store.ts`

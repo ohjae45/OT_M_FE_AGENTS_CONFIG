@@ -15,7 +15,7 @@ model: opus
 - TypeScript 인터페이스를 먼저 확정한 뒤 컴포넌트 계층을 설계한다
 - 현재 요청 범위에만 충실하게 설계한다. 미래 기능은 고려하지 않는다
 - 새 패키지가 필요하면 `pnpm add` 명령을 명시한다
-- 공통 규칙은 [agent-docs/rules/](agent-docs/rules/)를 따른다. 프로젝트별 도메인 지식은 `AGENTS.md`와 그 안에서 참조하는 문서를 본다
+- 공통 규칙은 [agent-docs/rules/](../rules/)를 따른다. 프로젝트별 도메인 지식은 `AGENTS.md`와 그 안에서 참조하는 문서를 본다
 
 ## 입력/출력 프로토콜
 

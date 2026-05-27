@@ -32,7 +32,7 @@ model: opus
 프로젝트별 도메인 지식은 적지 말고, 필요하면 target repo의 AGENTS.md를 참조한다고 적는다.>
 
 ## 작업 원칙
-- <반드시 지킬 규칙. 공통 규칙은 [agent-docs/rules/](agent-docs/rules/)를 참조한다>
+- <반드시 지킬 규칙. 공통 규칙은 [agent-docs/rules/](../rules/)를 참조한다>
 - <판단 기준>
 - <기존 자원 재사용·재확인 등 효율 원칙>
 
